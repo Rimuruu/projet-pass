@@ -28,7 +28,7 @@ bool initRound (struct Round* round){
     round->wordHintIndex=0;
     round->wordGuessIndex=0;
     round->maxWord=0;
-    for(i = 0; i<16; i++){
+   for(i = 0; i<10; i++){
         if(initWord(round->wordsGuess+i,"EMPTY")){
             errmsgf("Init Word error");  
             return true;
@@ -62,7 +62,7 @@ bool print_Word(struct Word* word){
         errmsgf("Word null");
         return true;
     }
-    printf("Word %s size %lu \n",word->word,(unsigned long)word->size);
+    printf("Word %s size %" PRIu32 " \n",word->word,word->size);
     return false;
 }
 
@@ -72,12 +72,12 @@ bool print_Round(struct Round* round){
         errmsgf("Round null");
         return true;
     }
-    printf("wordHintIndex %lu wordGuessIndex %lu maxWord %lu \n", (unsigned long)round->wordHintIndex,(unsigned long)round->wordGuessIndex, (unsigned long)round->maxWord);
-    for(i = 0; i<16; i++){
+    printf("wordHintIndex %" PRIu32 " wordGuessIndex %" PRIu32 " maxWord %" PRIu32 " \n", round->wordHintIndex,round->wordGuessIndex, round->maxWord);
+    for(i = 0; i<10; i++){
         
-        printf("Word tips %lu ", (unsigned long)i);
+        printf("Word tips %" PRIu32 " ", i);
         if(print_Word(round->wordsHint+i)) return false;
-        printf("Word guess %lu ",(unsigned long)i);
+        printf("Word guess %" PRIu32 " ",i);
         if(print_Word(round->wordsGuess+i)) return false;
     }
     return false;
@@ -90,8 +90,10 @@ bool print_Game(struct Game* game){
         errmsgf("Game is null");
         return true;
     }
+    printf("Score %" PRIu32 " Round %" PRIu32 " \n", game->score,game->roundIndex);
+   
     for(i = 0; i<5; i++){
-        printf("Word round %lu ",(unsigned long)i);
+        printf("Word round %" PRIu32 " ",i);
         if(print_Round(game->rounds+i))return false;
 
     }
