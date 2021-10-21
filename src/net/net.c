@@ -1,6 +1,8 @@
 #include "net.h"
 
 
+
+
 bool make_sockaddr(struct sockaddr_in* serv_addr,
                     char * ip_addr,
                     int port
@@ -18,7 +20,7 @@ bool make_sockaddr(struct sockaddr_in* serv_addr,
 }
 
 bool init_socket(int* s){
-    (*s) = socket(AF_INET,SOCK_DGRAM,0);
+    (*s) = socket(AF_INET,SOCK_STREAM,0);
     if((*s) == -1){
         errmsgf("err socket init");
         return true;
@@ -28,7 +30,8 @@ bool init_socket(int* s){
 }
 
 
-bool init_bind(int* s,struct sockaddr * my_addr){
+bool init_bind(int* s,
+            struct sockaddr * my_addr){
 
     if (bind(*s, my_addr,sizeof((*my_addr))) == -1){
         errmsgf("err bind");
@@ -41,7 +44,55 @@ bool init_bind(int* s,struct sockaddr * my_addr){
 }
 
 
-bool sendGame(int* s,struct Game* game,struct sockaddr * dest_addr){
+bool init_listen(int* s){
+    if(listen(*s,2)==-1){
+        errmsgf("err listen");
+        return true;
+
+    }
+
+
+    return false;
+}
+
+bool accept_client(int* client_socket,
+                int* s,struct sockaddr* client_addr,socklen_t* addrlen){
+    int socket = accept(*s,client_addr,addrlen);
+    if(socket == -1){
+        errmsgf("err socket client");
+        return true;
+    }
+    *client_socket = socket;
+    return false;
+
+}
+
+bool connection_server(
+                int* s,struct sockaddr* server_addr,socklen_t addrlen){
+    if(connect(*s,server_addr,addrlen)==-1){
+        errmsgf("err connection server");
+        return true;
+    }
+
+    return false;
+
+}
+
+
+
+bool close_socket(int * s){
+    if(close(*s)==-1){
+        errmsgf("err close socket");
+        return true;
+    }
+
+    return false;
+
+}
+
+
+bool sendGame(int* s,
+            struct Game* game,struct sockaddr * dest_addr){
 
     if(sendto(*s,game, sizeof(struct Game), MSG_CONFIRM , dest_addr, sizeof(*dest_addr)) == -1){
         errmsgf("err send%s\n",strerror(errno));    
@@ -51,7 +102,8 @@ bool sendGame(int* s,struct Game* game,struct sockaddr * dest_addr){
 }
 
 
-bool recvGame(int* s,struct Game* game,struct sockaddr * src_addr){
+bool recvGame(int* s,
+            struct Game* game,struct sockaddr * src_addr){
     socklen_t size = sizeof(*src_addr);
     if(recvfrom(*s,game, sizeof(struct Game), MSG_CONFIRM ,  src_addr, &size) == -1){
         errmsgf("err recv %s\n",strerror(errno));       

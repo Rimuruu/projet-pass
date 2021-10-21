@@ -11,32 +11,32 @@ int main(int argc,char** argv){
     int socket;
 
     if(print_Game(&game)){
-        errmsgf("print Game error");  
+        errmsgf("print Game error\n");  
         return EXIT_FAILURE;
     }
 
     if(initGame(&game)){
-        errmsgf("Init Game error");  
+        errmsgf("Init Game error\n");  
         return EXIT_FAILURE;
     }
     
     if(print_Game(&game)){
-        errmsgf("print Game error");  
+        errmsgf("print Game error\n");  
         return EXIT_FAILURE;
     }
     if(make_sockaddr(&my_addr,"127.0.0.1",0)) {
-        errmsgf("err make sockaddr");
+        errmsgf("err make sockaddr\n");
         return EXIT_FAILURE;
     }
 
     
     if(make_sockaddr(&serv_addr,"127.0.0.1",7777)) {
-        errmsgf("err make sockaddr");
+        errmsgf("err make sockaddr\n");
         return EXIT_FAILURE;
     }
 
     if(init_socket(&socket)) {
-        errmsgf("err init socket");
+        errmsgf("err init socket\n");
         return EXIT_FAILURE;
     }
 
@@ -47,8 +47,20 @@ int main(int argc,char** argv){
     }
     printf("sizeof game : %zu \n", sizeof(game));
     
-    if(sendGame(&socket,&game, (struct sockaddr *) &serv_addr)){
+    /*if(sendGame(&socket,&game, (struct sockaddr *) &serv_addr)){
         errmsgf("err send Game");
+        return EXIT_FAILURE;
+    }*/
+
+    if(connection_server(&socket,(struct sockaddr *) &serv_addr,sizeof(serv_addr))){
+        errmsgf("err connection\n");
+
+    }else{
+        printf("Connected");
+    }
+
+    if(close_socket(&socket)){
+        errmsgf("err close socket\n");  
         return EXIT_FAILURE;
     }
     
