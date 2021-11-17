@@ -34,7 +34,7 @@ bool init_bind(int *s,
 
     if (bind(*s, my_addr, sizeof((*my_addr))) == -1)
     {
-        errmsgf("err bind\n");
+        errmsgf("err bind %s\n",strerror(errno));
         return true;
     }
 

@@ -24,13 +24,13 @@ bool handle_connection()
     {
         if (connection_server(&listen_s, (struct sockaddr *)&serv_addr, sizeof(serv_addr)))
         {
-            printf("Retrying\n");
+            debug_print("Retrying\n");
             sleep(3);
         }
         else
         {
             FD_SET(listen_s, &server_set);
-            printf("Connected\n");
+            debug_print("Connected\n");
             return false;
         }
     }
@@ -40,20 +40,24 @@ bool wait_for_start()
 {
     char buff[MAX];
     int maxfd = max(STDIN_FILENO, listen_s) + 1;
+    int readV;
     while (true)
     {
         FD_SET(STDIN_FILENO, &server_set);
         select(maxfd, &server_set, NULL, NULL, NULL);
         if (FD_ISSET(STDIN_FILENO, &server_set))
         {
-            read(STDIN_FILENO, buff, MAX);
+            readV = read(STDIN_FILENO, buff, MAX);
+            
+            debug_print("DEBUG TEST");
+            debug_print("test %d\n",readV);
             while (true)
             {
                 FD_SET(listen_s, &server_set);
                 select(maxfd, NULL, &server_set, NULL, NULL);
                 if (FD_ISSET(listen_s, &server_set))
                 {
-                    printf("sending...");
+                    debug_print("sending...\n");
                     write(listen_s, buff, MAX);
                     break;
                 }
@@ -64,9 +68,13 @@ bool wait_for_start()
         select(maxfd, &server_set, NULL, NULL, NULL);
         if (FD_ISSET(listen_s, &server_set))
         {
-            read(listen_s, buff, sizeof(buff));
-
-            printf("From client: %s\t To client : \n", buff);
+            readV = read(listen_s, buff, sizeof(buff));
+            debug_print("%d data read\n",readV);
+            if (readV <1){
+                errmsgf("Server disconnect\n");
+                return true;
+            }
+            debug_print("Message from server: %s\t \n", buff);
 
             bzero(buff, MAX);
         }
@@ -74,14 +82,36 @@ bool wait_for_start()
     return false;
 }
 
+
+bool waiting_status(){
+    uint8_t buff,readV;
+    uint8_t maxfd = max(STDIN_FILENO, listen_s) + 1;
+    while(true){
+        FD_SET(listen_s, &server_set);
+        select(maxfd, &server_set, NULL, NULL, NULL);
+        if (FD_ISSET(listen_s, &server_set))
+        {
+            readV = read(listen_s, &buff, sizeof(buff));
+            debug_print("%d data read\n",readV);
+            if (readV <1){
+                errmsgf("Server disconnect\n");
+                return true;
+            }
+            debug_print("Message from server: %d\t \n", buff);
+            buff = 0;
+            break;
+        }
+
+    }
+    return false;
+
+
+}
+
 int main(int argc, char **argv)
 {
-
-    if (print_Game(&game))
-    {
-        errmsgf("print Game error\n");
-        return EXIT_FAILURE;
-    }
+ 
+    
 
     if (initGame(&game))
     {
@@ -89,11 +119,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if (print_Game(&game))
-    {
-        errmsgf("print Game error\n");
-        return EXIT_FAILURE;
-    }
+
     if (make_sockaddr(&my_addr, "127.0.0.1", 0))
     {
         errmsgf("err make sockaddr\n");
@@ -117,17 +143,20 @@ int main(int argc, char **argv)
         errmsgf("err init bind\n");
         return EXIT_FAILURE;
     }
-    printf("sizeof game : %zu \n", sizeof(game));
+    debug_print("sizeof game : %zu \n", sizeof(game));
     FD_ZERO(&server_set);
-    /*if(sendGame(&socket,&game, (struct sockaddr *) &serv_addr)){
-        errmsgf("err send Game");
-        return EXIT_FAILURE;
-    }*/
+   
     FD_SET(STDIN_FILENO, &server_set);
     if (handle_connection())
     {
         return EXIT_FAILURE;
     }
+
+    if (waiting_status())
+    {
+        return EXIT_FAILURE;
+    }
+
 
     if (wait_for_start())
     {

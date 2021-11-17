@@ -16,6 +16,7 @@ struct Client_info
     struct sockaddr_in addr;
     int socket;
     socklen_t s_len;
+    bool status;
 };
 
 bool make_sockaddr(struct sockaddr_in *serv_addr,

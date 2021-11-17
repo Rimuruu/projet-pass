@@ -5,6 +5,7 @@
 #include "game.h"
 #include "net.h"
 #include <sys/select.h>
+#include "enumvalue.h"
 
 #define SERVERPORT 7777
 #define IP "127.0.0.1"
@@ -40,14 +41,15 @@ bool handle_connection()
                 else
                 {
                     FD_SET(clients[nb_client].socket, &clients_set);
-                    printf("client connected\n");
+                    clients[nb_client].status = false;
+                    debug_print("client connected\n");
                     nb_client++;
                 }
             }
         }
         else
         {
-            printf("server full\n");
+            debug_print("server full\n");
             return false;
         }
     }
@@ -62,36 +64,38 @@ bool wait_for_start()
     {
         for (i = 0; i < 2; i++)
         {
-            printf("check client %d", i);
-            FD_SET(clients[0].socket, &clients_set);
-            FD_SET(clients[1].socket, &clients_set);
+            debug_print("check client %d \n", i);
+            FD_SET(clients[i].socket, &clients_set);
             select(maxfd, &clients_set, NULL, NULL, NULL);
             if (FD_ISSET(clients[i].socket, &clients_set))
             {
-                printf("set %d", i);
+                debug_print("set %d\n", i);
                 bzero(buff, MAX);
                 // read the message from client and copy it in buffer
                 r = read(clients[i].socket, buff, sizeof(buff));
-                printf("From client: %s %d\n", buff, r);
+                if(r < 1){
+                    errmsgf("Client %d disconnect\n",i);
+                    return true;
+                }
+                debug_print("From client %d: %s \n", buff, i);
                 // print buffer which contains the client contents
-                printf("end \n");
-
+                debug_print("end \n");
                 for (y = 0; y < 2; y++)
-                {
-                    while (true)
                     {
-                        printf("sendin to %d \n", y);
-                        FD_SET(clients[0].socket, &clients_set);
-                        FD_SET(clients[1].socket, &clients_set);
-                        select(maxfd, NULL, &clients_set, NULL, NULL);
-                        if (FD_ISSET(clients[y].socket, &clients_set))
+                        while (true)
                         {
-
-                            write(clients[y].socket, buff, sizeof(buff));
-                            break;
+                            debug_print("sending to %d \n", y);
+                            FD_SET(clients[y].socket, &clients_set);
+                            select(maxfd, NULL, &clients_set, NULL, NULL);
+                            if (FD_ISSET(clients[y].socket, &clients_set))
+                            {
+                
+                                write(clients[y].socket, buff, sizeof(buff));
+                                break;
+                            }
                         }
                     }
-                }
+                
 
                 bzero(buff, MAX);
             }
@@ -100,9 +104,36 @@ bool wait_for_start()
     return false;
 }
 
+bool checking_status(){
+    while(!(clients[0].status) || !(clients[0].status));
+    return false;
+}
+
+
+bool sending_status_check(){
+    uint8_t buff,y;
+    uint8_t  maxfd = max(clients[0].socket, clients[1].socket) + 1;
+    for (y = 0; y < 2; y++)
+        {
+            while (true)
+            {
+                debug_print("sending to %d \n", y);
+                FD_SET(clients[y].socket, &clients_set);
+                select(maxfd, NULL, &clients_set, NULL, NULL);
+                if (FD_ISSET(clients[y].socket, &clients_set))
+                {
+                    buff = PSTATUS;
+                    write(clients[y].socket, &buff, sizeof(buff));
+                    break;
+                }
+            }
+        }
+    return false;
+}
+
 int main(int argc, char **argv)
 {
-
+    debug_print("DEBUG TEST\n");
     if (make_sockaddr(&serv_addr, IP, SERVERPORT))
     {
         errmsgf("err make sockaddr\n");
@@ -130,16 +161,8 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
     FD_SET(listen_s, &listen_set);
+    
 
-    /*if(recvGame(&socket,&game, (struct sockaddr *) &client_addr)){
-        errmsgf("err rcv Game");
-        return EXIT_FAILURE;
-    }*/
-
-    /* if(print_Game(&game)){
-        errmsgf("print Game error");  
-        return EXIT_FAILURE;
-    }*/
 
     if (handle_connection())
     {
@@ -150,6 +173,12 @@ int main(int argc, char **argv)
     if (close_socket(&listen_s))
     {
         errmsgf("err close socket\n");
+        return EXIT_FAILURE;
+    }
+
+    if (sending_status_check())
+    {
+        errmsgf("err waiting\n");
         return EXIT_FAILURE;
     }
 
