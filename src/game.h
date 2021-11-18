@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <inttypes.h>
+#include "enumvalue.h"
 
 #pragma once
 
@@ -13,6 +14,18 @@ struct Word{
 }__attribute__((__packed__));
 
 
+struct GuessList{
+    struct Word wordsHint[10];
+}__attribute__((__packed__));
+
+struct Score{
+    uint32_t score;
+}__attribute__((__packed__));
+
+struct Info{
+    enum typeV type;
+}__attribute__((__packed__));
+
 
 struct Round{
     struct Word wordsHint[10];
@@ -21,8 +34,7 @@ struct Round{
     uint32_t wordGuessIndex; // Last word guess;
     uint32_t maxWord; // Max guess allow
 
-}__attribute__((__packed__)); // Structures que l'on veut envoyé dans le réseau 
-
+}; 
 
 
 struct Game {
@@ -30,7 +42,7 @@ struct Game {
     uint32_t roundIndex; // Current round
     uint32_t score;
 
-}__attribute__((__packed__));
+};
 
 
 bool initGame (struct Game* game);

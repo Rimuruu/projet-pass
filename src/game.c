@@ -52,7 +52,7 @@ bool initWord (struct Word* word,
         errmsgf("strcpy error");
         return true;
     }
-    word->size = strlen(word_p);
+    word->size = (uint32_t) strlen(word_p);
     return false;
 }
 

@@ -1,6 +1,7 @@
 
+#pragma once 
 
-enum tvalue  {
+enum infoV  {
     UNK = 0,
     AINT = 1,
     AWORD = 2,
@@ -11,4 +12,13 @@ enum tvalue  {
     PSCORE = 7,
     CREADY = 8,
     PSTATUS = 9
+};
+
+enum typeV {
+    WORD = 0,
+    GLIST =1,
+    STRING = 2,
+    INFO = 3
+
+
 };

@@ -2,7 +2,7 @@
 
 bool make_sockaddr(struct sockaddr_in *serv_addr,
                    char *ip_addr,
-                   int port)
+                   uint16_t port)
 {
     if (inet_aton(ip_addr, &(serv_addr->sin_addr)) == 0)
     {
@@ -98,4 +98,20 @@ bool close_socket(int *s)
     }
 
     return false;
+}
+
+bool set_packet(uint8_t* packet,
+                uint8_t* data,size_t size_struct,enum typeV type)
+{
+    if(size_struct > 1023){
+        errmsgf("err packet too big \n");
+        return true;
+    }    
+    packet[0] = type;
+    memcpy(packet+1, data, size_struct);
+    return false;
+
+            
+
+
 }

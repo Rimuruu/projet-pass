@@ -7,15 +7,17 @@
 #include <sys/select.h>
 #include "enumvalue.h"
 
-#define SERVERPORT 7777
+
 #define IP "127.0.0.1"
-#define MAX 40
+#define MAX 1024
 
 struct Game game;
 struct sockaddr_in serv_addr;
 struct Client_info clients[2];
 int nb_client = 0;
 int listen_s;
+
+uint16_t SERVERPORT = 7777;
 fd_set listen_set, clients_set;
 
 int max(int a, int b)
@@ -40,6 +42,14 @@ bool handle_connection()
                 }
                 else
                 {
+                    clients[nb_client].f_w = fdopen(clients[nb_client].socket, "a+");
+                    if(clients[nb_client].f_w== NULL){
+                        return true;
+                    }
+                    clients[nb_client].f_r = fdopen(clients[nb_client].socket, "r");
+                    if(clients[nb_client].f_r == NULL){
+                        return true;
+                    }
                     FD_SET(clients[nb_client].socket, &clients_set);
                     clients[nb_client].status = false;
                     debug_print("client connected\n");
@@ -55,63 +65,21 @@ bool handle_connection()
     }
 }
 
-bool wait_for_start()
-{
-    int i, y, r;
-    char buff[MAX];
-    int maxfd = max(clients[0].socket, clients[1].socket) + 1;
-    while (true)
-    {
-        for (i = 0; i < 2; i++)
-        {
-            debug_print("check client %d \n", i);
-            FD_SET(clients[i].socket, &clients_set);
-            select(maxfd, &clients_set, NULL, NULL, NULL);
-            if (FD_ISSET(clients[i].socket, &clients_set))
-            {
-                debug_print("set %d\n", i);
-                bzero(buff, MAX);
-                // read the message from client and copy it in buffer
-                r = read(clients[i].socket, buff, sizeof(buff));
-                if(r < 1){
-                    errmsgf("Client %d disconnect\n",i);
-                    return true;
-                }
-                debug_print("From client %d: %s \n", buff, i);
-                // print buffer which contains the client contents
-                debug_print("end \n");
-                for (y = 0; y < 2; y++)
-                    {
-                        while (true)
-                        {
-                            debug_print("sending to %d \n", y);
-                            FD_SET(clients[y].socket, &clients_set);
-                            select(maxfd, NULL, &clients_set, NULL, NULL);
-                            if (FD_ISSET(clients[y].socket, &clients_set))
-                            {
-                
-                                write(clients[y].socket, buff, sizeof(buff));
-                                break;
-                            }
-                        }
-                    }
-                
-
-                bzero(buff, MAX);
-            }
-        }
-    }
-    return false;
-}
 
 bool checking_status(){
-    while(!(clients[0].status) || !(clients[0].status));
+    //int y,buff;
+    //uint8_t  maxfd = max(clients[0].socket, clients[1].socket) + 1;
+    while(!(clients[0].status) || !(clients[1].status)){
+        
+    }
     return false;
 }
 
 
 bool sending_status_check(){
-    uint8_t buff,y;
+    uint8_t buff[MAX],y;
+    struct Info info;
+
     uint8_t  maxfd = max(clients[0].socket, clients[1].socket) + 1;
     for (y = 0; y < 2; y++)
         {
@@ -119,11 +87,22 @@ bool sending_status_check(){
             {
                 debug_print("sending to %d \n", y);
                 FD_SET(clients[y].socket, &clients_set);
-                select(maxfd, NULL, &clients_set, NULL, NULL);
+                if(select(maxfd, NULL, &clients_set, NULL, NULL) < 0){
+                    return true;
+                }
                 if (FD_ISSET(clients[y].socket, &clients_set))
                 {
-                    buff = PSTATUS;
-                    write(clients[y].socket, &buff, sizeof(buff));
+                    size_t writeV;
+                    info.type = PSTATUS;
+                    
+                    if(set_packet(buff,(uint8_t *) &info,sizeof(struct Info),INFO)){
+                        break;
+                    }
+                  
+                    writeV = fwrite(buff, sizeof(uint8_t), MAX,clients[y].f_w);
+                    fflush(clients[y].f_w);
+                    debug_print("write value %d feof %d, %d data write \n",ferror(clients[y].f_w),feof(clients[y].f_w),(int)writeV);
+                  
                     break;
                 }
             }
@@ -133,6 +112,13 @@ bool sending_status_check(){
 
 int main(int argc, char **argv)
 {
+
+    if(argc != 2){
+         errmsgf("arg err\n");
+        return EXIT_FAILURE;
+    }
+    SERVERPORT = (uint16_t)atoi(argv[1]);
+
     debug_print("DEBUG TEST\n");
     if (make_sockaddr(&serv_addr, IP, SERVERPORT))
     {
@@ -182,10 +168,28 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    if (wait_for_start())
-    {
-        errmsgf("err waiting\n");
+    if(checking_status()){
+
         return EXIT_FAILURE;
     }
+
+    if (close_socket(&clients[0].socket))
+    {
+        errmsgf("err close socket\n");
+        return EXIT_FAILURE;
+    }
+    
+    if (close_socket(&clients[1].socket))
+    {
+        errmsgf("err close socket\n");
+        return EXIT_FAILURE;
+    }
+    
+    fclose(clients[0].f_w);
+    fclose(clients[0].f_r);
+    fclose(clients[1].f_w);
+    fclose(clients[1].f_r);
+
+   
     return EXIT_SUCCESS;
 }
