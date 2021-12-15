@@ -1,24 +1,16 @@
 
-#pragma once 
+#pragma once
 
-enum infoV  {
-    UNK = 0,
-    AINT = 1,
-    AWORD = 2,
-    CDISC = 3,
-    EINT = 4,
-    EWORD = 5,
-    PWORDL = 6,
-    PSCORE = 7,
-    CREADY = 8,
-    PSTATUS = 9
-};
-
-enum typeV {
-    WORD = 0,
-    GLIST =1,
-    STRING = 2,
-    INFO = 3
-
+enum typeV
+{
+    MSG = 1,
+    GLIST = 2,
+    HLIST = 3,
+    MAXWORD = 4,
+    SCORE = 5,
+    WGUESS = 6,
+    WHINT = 7,
+    FAIL = 8,
+    PING = 9
 
 };

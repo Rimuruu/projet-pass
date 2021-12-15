@@ -9,18 +9,20 @@
 #define MAX 1024
 
 struct Game game;
-
-struct Info infoG;
-
 struct Server_info serv_info;
 
 struct sockaddr_in my_addr, serv_addr;
-uint16_t SERVERPORT = 7777;
+uint32_t SERVERPORT = 7777;
 fd_set server_set;
 
 int max(int a, int b)
 {
     return a > b ? a : b;
+}
+
+int other_player(int a)
+{
+    return a == 0 ? 1 : 0;
 }
 
 bool handle_connection()
@@ -34,12 +36,14 @@ bool handle_connection()
         }
         else
         {
-            serv_info.f_r = fdopen(serv_info.socket, "r");
-            if(serv_info.f_r == NULL){
+            serv_info.f_r = fdopen(serv_info.socket, "r+");
+            if (serv_info.f_r == NULL)
+            {
                 return true;
             }
-            serv_info.f_w = fdopen(serv_info.socket, "w");
-            if(serv_info.f_w == NULL){
+            serv_info.f_w = fdopen(serv_info.socket, "w+");
+            if (serv_info.f_w == NULL)
+            {
                 return true;
             }
             FD_SET(serv_info.socket, &server_set);
@@ -49,59 +53,159 @@ bool handle_connection()
     }
 }
 
+bool print_server_msg(
+    uint8_t *buff)
+{
+    struct Word msg;
+    if (buff == NULL)
+    {
+        errmsgf("Server msg empty\n");
+        return true;
+    }
+    memcpy(&msg, buff, sizeof(struct Word));
+    printf("[SERVER] : %s \n", msg.word);
+    return false;
+}
 
+bool print_word_list(
+    uint8_t *buff, uint8_t type)
+{
+    struct WordList msg;
+    if (buff == NULL)
+    {
+        errmsgf("Server list empty\n");
+        return true;
+    }
 
-
-bool waiting_status(){
-    uint8_t buff[MAX];
-    uint8_t maxfd = (uint8_t) max(STDIN_FILENO, serv_info.socket) + 1;
-    while(true){
-        FD_SET(serv_info.socket, &server_set);
-        select(maxfd, &server_set, NULL, NULL, NULL);
-        if (FD_ISSET(serv_info.socket, &server_set))
-        {
-            size_t readV;
-            debug_print("recv \n");
-            readV = fread(buff,sizeof(uint8_t),MAX,serv_info.f_r);
-            debug_print("%d bytes data read\n",(int)readV);
-            if(buff[0] == INFO){
-                memcpy(&infoG, buff+1, sizeof(struct Info));
-                debug_print("%d info\n",infoG.type);
-            }
-            
-            debug_print("data read %d\n",buff[0]);
-            if (readV <1){
-                
-                errmsgf("Server disconnect\n");
-                return true;
-            }
-            debug_print("Message from server: %d\t \n", (int) buff[0]);
-            
-            
-            break;
-        }
-
+    memcpy(&msg, buff, sizeof(struct WordList));
+    if (type == GLIST)
+    {
+        printf("[SERVER] : Word Guess Recap \n");
+    }
+    else
+    {
+        printf("[SERVER] : Word Hint Recap \n");
+    }
+    uint8_t i = 0;
+    for (i = 0; i < 10;)
+    {
+        printf("[SERVER] : Word %d | %s \n", (i + 1), msg.words[i].word);
+        sleep(1);
     }
     return false;
+}
 
+bool ask_maxword()
+{
+    uint8_t buff[MAX];
+    uint8_t maxword;
+    printf("Take your bet (max 10) :\n");
+    char line[256];
+    if (fgets(line, sizeof(line), stdin))
+    {
+        fflush(stdin);
+        debug_print("%s", line);
+        int tmp = 5;
+        if (sscanf(line, "%d", &tmp) == 1)
+        {
+            if (tmp > 10)
+                tmp = 10;
+            printf("You bet on %d words\n", maxword);
+            return false;
+        }
+        maxword = tmp;
+    }
+    if (set_packet(buff, &maxword, sizeof(uint8_t), MAXWORD))
+    {
+        return true;
+    }
+    if (send_packet(buff, serv_info.socket, &server_set, serv_info.f_w))
+    {
+        return true;
+    }
+    return false;
+}
 
+bool process_packet(uint8_t *buff, uint8_t type)
+{
+
+    switch (type)
+    {
+    case WHINT:
+        break;
+    case WGUESS:
+        break;
+    case MAXWORD:
+        if (ask_maxword())
+        {
+            return true;
+        }
+        break;
+    case GLIST:
+        if (print_word_list(buff, type))
+        {
+            return true;
+        }
+        break;
+    case HLIST:
+        if (print_word_list(buff, type))
+        {
+            return true;
+        }
+        break;
+    case MSG:
+        if (print_server_msg(buff))
+        {
+            return true;
+        }
+        break;
+    case FAIL:
+        printf("You have exhausted all you attempt.\n");
+        break;
+    case SCORE:
+        printf("Your score is %d \n", buff[0]);
+        break;
+    case PING:
+        break;
+    default:
+        debug_print("Unknown packet\n");
+        break;
+    }
+    return false;
+}
+
+bool waiting_data()
+{
+    uint8_t buff[MAX];
+    while (true)
+    {
+        if (recv_packet(buff, serv_info.socket, &server_set, serv_info.f_r))
+        {
+            return true;
+        }
+        if (process_packet(buff + 1, buff[0]))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 int main(int argc, char **argv)
 {
- 
-    if(argc != 2){
-         errmsgf("arg err\n");
+
+    if (argc != 2)
+    {
+        errmsgf("arg err\n");
         return EXIT_FAILURE;
     }
-    SERVERPORT = (uint16_t)atoi(argv[1]);
+    SERVERPORT = (uint32_t)atoi(argv[1]);
 
     if (initGame(&game))
     {
         errmsgf("Init Game error\n");
         return EXIT_FAILURE;
     }
-
 
     if (make_sockaddr(&my_addr, "127.0.0.1", 0))
     {
@@ -128,20 +232,16 @@ int main(int argc, char **argv)
     }
     debug_print("sizeof game : %zu \n", sizeof(game));
     FD_ZERO(&server_set);
-   
-    FD_SET(STDIN_FILENO, &server_set);
+
     if (handle_connection())
     {
         return EXIT_FAILURE;
     }
 
-    if (waiting_status())
+    if (waiting_data())
     {
         return EXIT_FAILURE;
     }
-
-
-  
 
     if (close_socket(&serv_info.socket))
     {

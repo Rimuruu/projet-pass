@@ -4,7 +4,7 @@ CFLAGS= -Wall -Werror
 
 
 all :client	server
-
+dev : test
 debug : CFLAGS += -DDEBUG
 debug :client	server 
 
@@ -18,9 +18,13 @@ client.o:		errhandlers.h	game.h	net.h enumvalue.h
 
 server.o:		errhandlers.h	game.h	net.h enumvalue.h
 
+test.o:		errhandlers.h	game.h	net.h enumvalue.h
+
 client:		stdmsghandlers.o	game.o	net.o
 
 server:		stdmsghandlers.o	game.o	net.o 
+
+test:		stdmsghandlers.o	game.o	net.o 
 
 clean:
 	rm -f *.o

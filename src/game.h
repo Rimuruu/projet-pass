@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <string.h> 
+#include <string.h>
 #include "errhandlers.h"
 #include <stdio.h>
 #include <stdbool.h>
@@ -8,51 +8,48 @@
 
 #pragma once
 
-struct Word{
-    char word[32];
-    uint32_t size;
-}__attribute__((__packed__));
+struct Word
+{
+    uint8_t word[32];
+    uint8_t size;
+} __attribute__((__packed__));
 
+struct Message
+{
+    uint8_t word[32];
+    uint8_t size;
+} __attribute__((__packed__));
 
-struct GuessList{
-    struct Word wordsHint[10];
-}__attribute__((__packed__));
+struct WordList
+{
+    struct Word words[10];
+    uint8_t size;
+} __attribute__((__packed__));
 
-struct Score{
-    uint32_t score;
-}__attribute__((__packed__));
-
-struct Info{
-    enum typeV type;
-}__attribute__((__packed__));
-
-
-struct Round{
-    struct Word wordsHint[10];
-    struct Word wordsGuess[10];
-    uint32_t wordHintIndex; // Last word Hint;
-    uint32_t wordGuessIndex; // Last word guess;
-    uint32_t maxWord; // Max guess allow
-
-}; 
-
-
-struct Game {
-    struct Round rounds[5];
-    uint32_t roundIndex; // Current round
-    uint32_t score;
-
+struct Round
+{
+    struct WordList wordsHint;
+    struct WordList wordsGuess;
+    uint8_t wordHintIndex;  // Last word Hint;
+    uint8_t wordGuessIndex; // Last word guess;
+    uint8_t maxWord;        // Max guess allow
 };
 
+struct Game
+{
+    struct Round rounds[5];
+    uint8_t roundIndex; // Current round
+    uint8_t score;
+};
 
-bool initGame (struct Game* game);
-bool initRound (struct Round* round);
-bool initWord (struct Word* word,
-                char* word_p);
+bool initGame(struct Game *game);
+bool initRound(struct Round *round);
+bool initWord(struct Word *word,
+              uint8_t *word_p, uint8_t size);
+bool initWordList(struct WordList *wordlist);
+bool addWord(struct WordList *wordlist,
+             uint8_t *word, uint8_t size);
 
-
-
-
-bool print_Word(struct Word* word);
-bool print_Round(struct Round* round);
-bool print_Game(struct Game* game);
+bool print_Word(struct Word *word);
+bool print_Round(struct Round *round);
+bool print_Game(struct Game *game);

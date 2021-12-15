@@ -1,3 +1,4 @@
+
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -9,23 +10,25 @@
 #include <errno.h>
 #include <unistd.h>
 #include <string.h>
-#include  "enumvalue.h"
+#include <sys/select.h>
+#include "enumvalue.h"
 
 #pragma once
-
+#define MAX 1024
 struct Client_info
 {
     struct sockaddr_in addr;
     int socket;
     socklen_t s_len;
-    FILE* f_w;
-    FILE* f_r;
+    FILE *f_w;
+    FILE *f_r;
     bool status;
 };
 
-struct Server_info {
-    FILE* f_w;
-    FILE* f_r;
+struct Server_info
+{
+    FILE *f_w;
+    FILE *f_r;
     int socket;
 };
 
@@ -48,5 +51,10 @@ bool connection_server(
 
 bool close_socket(int *s);
 
-bool set_packet(uint8_t* packet,
-                uint8_t* data,size_t size_struct,enum typeV typ);
+bool send_packet(uint8_t *packet,
+                 int socket, fd_set *set2, FILE *f_w);
+bool recv_packet(uint8_t *packet,
+                 int socket, fd_set *set2, FILE *f_r);
+
+bool set_packet(uint8_t *packet,
+                uint8_t *data, size_t size_struct, enum typeV typ);
