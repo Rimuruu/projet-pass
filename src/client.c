@@ -15,6 +15,8 @@ struct sockaddr_in my_addr, serv_addr;
 uint32_t SERVERPORT = 7777;
 fd_set server_set;
 
+bool process_packet(uint8_t *buff, uint8_t type);
+
 int max(int a, int b)
 {
     return a > b ? a : b;
@@ -95,35 +97,74 @@ bool print_word_list(
     return false;
 }
 
-bool ask_maxword()
-{
+bool send_maxword(){
     uint8_t buff[MAX];
     uint8_t maxword;
-    printf("Take your bet (max 10) :\n");
+    
     char line[256];
     if (fgets(line, sizeof(line), stdin))
     {
         fflush(stdin);
-        debug_print("%s", line);
+        debug_print("line %s\n", line);
         int tmp = 5;
         if (sscanf(line, "%d", &tmp) == 1)
         {
             if (tmp > 10)
                 tmp = 10;
-            printf("You bet on %d words\n", maxword);
-            return false;
+            
         }
         maxword = tmp;
     }
+    printf("You bet on %d words\n", maxword);
     if (set_packet(buff, &maxword, sizeof(uint8_t), MAXWORD))
     {
         return true;
     }
-    if (send_packet(buff, serv_info.socket, &server_set, serv_info.f_w))
+    if (send_packet(buff, serv_info.socket, serv_info.f_w))
     {
         return true;
     }
     return false;
+}
+
+bool ask_maxword()
+{
+    fd_set set;
+    int r;
+    uint8_t buff[MAX] ;
+    struct timeval timeout;      
+    timeout.tv_sec = 2;
+    timeout.tv_usec = 0;
+    int maxfd = stdin > serv_info.socket ? stdin : serv_info.socket; 
+   
+    printf("Take your bet (max 10) :\n");
+    while(true){
+        FD_ZERO(&set);
+        FD_SET(STDIN,&set);
+        FD_SET(serv_info.socket,&set);
+        r = select(maxfd+1,&set,NULL,NULL,&timeout);
+        if(r == -1){
+            return true;
+        }
+        if(r > 0 ){
+            if(FD_ISSET(STDIN,&set)){
+                if(send_maxword()){
+                    return true;
+                }
+                return false;
+            }
+            if(FD_ISSET(serv_info.socket,&set)){
+                if (recv_packet(buff, serv_info.socket, serv_info.f_r))
+                {
+                    return true;
+                }
+                if (process_packet(buff + 1, buff[0]))
+                {
+                    return true;
+                }
+            }
+        }
+    }
 }
 
 bool process_packet(uint8_t *buff, uint8_t type)
@@ -179,7 +220,7 @@ bool waiting_data()
     uint8_t buff[MAX];
     while (true)
     {
-        if (recv_packet(buff, serv_info.socket, &server_set, serv_info.f_r))
+        if (recv_packet(buff, serv_info.socket, serv_info.f_r))
         {
             return true;
         }

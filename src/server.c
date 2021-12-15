@@ -82,19 +82,35 @@ bool sending_player_turn()
 
     for (y = 0; y < 2; y++)
     {
+
         if (sprintf((char *)m, "Your are player %d", y + 1) < 0)
         {
+            
+            errmsgf("sprintf\n");
             return true;
         }
+        debug_print("sending...2\n");
         if (initWord(&msg, m, 32))
         {
+            
+            errmsgf("init\n");
             return true;
         }
+
         if (set_packet(buff, (uint8_t *)&msg, sizeof(struct Word), MSG))
         {
-            break;
+            
+            errmsgf("packet\n");
+            return true;
         }
-        send_packet(buff, clients[y].socket, &clients_set, clients[y].f_w);
+
+        
+        if(send_packet(buff, clients[y].socket, clients[y].f_w)){
+            
+            errmsgf("packet2\n");
+            return true;
+        }
+
     }
     return false;
 }
@@ -109,17 +125,19 @@ bool send_score()
     {
         if (sprintf((char *)m, "Your score %d", game.score) < 0)
         {
+            errmsgf("sprintf\n");
             return true;
         }
         if (initWord(&msg, m, 32))
         {
+            errmsgf("init\n");
             return true;
         }
         if (set_packet(buff, (uint8_t *)&msg, sizeof(struct Word), MSG))
         {
-            break;
+            return true;
         }
-        if (send_packet(buff, clients[y].socket, &clients_set, clients[y].f_w))
+        if (send_packet(buff, clients[y].socket, clients[y].f_w))
         {
             return true;
         }
@@ -134,27 +152,27 @@ bool ask_maxword()
     {
         return true;
     }
-    if (send_packet(buff, clients[0].socket, &clients_set, clients[0].f_w))
+    if (send_packet(buff, clients[0].socket, clients[0].f_w))
     {
         return true;
     }
     bzero(buff, MAX);
     //sleep(30);
-    /*if (recv_packet(buff, clients[0].socket, &clients_set, clients[0].f_r))
+    if (recv_from(buff, clients, 0))
     {
-        return false;
+        return true;
     }
     if (buff[0] == MAXWORD)
     {
-        debug_print("MAXWORD PACKET");
+        debug_print("MAXWORD PACKET\n");
         printf("Player bet on %d words\n", buff[1]);
         game.rounds[game.roundIndex].maxWord = buff[1];
     }
     else
     {
-        debug_print("WRONG PACKET");
-        game.rounds[game.roundIndex].maxWord = 5;
-    }*/
+        debug_print("WRONG PACKET\n");
+        return true;
+    }
     return false;
 }
 
@@ -174,20 +192,27 @@ bool play_game()
     {
         if (play_round())
         {
-            return false;
+            errmsgf("play round\n");
+            return true;
         }
+
         if (send_score())
         {
+            errmsgf("send score\n");
             return true;
         }
         if (swap_player())
         {
+            errmsgf("swap_player err\n");
             return true;
         }
+
         if (sending_player_turn())
         {
+            errmsgf("sending_player_turn\n");
             return true;
         }
+   
     }
     return false;
 }

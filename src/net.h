@@ -52,9 +52,12 @@ bool connection_server(
 bool close_socket(int *s);
 
 bool send_packet(uint8_t *packet,
-                 int socket, fd_set *set2, FILE *f_w);
+                 int socket, FILE *f_w);
 bool recv_packet(uint8_t *packet,
-                 int socket, fd_set *set2, FILE *f_r);
+                 int socket, FILE *f_r);
 
 bool set_packet(uint8_t *packet,
                 uint8_t *data, size_t size_struct, enum typeV typ);
+
+bool recv_from(uint8_t* packet,
+                struct Client_info* clients,int c);
