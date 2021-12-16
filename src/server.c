@@ -16,13 +16,10 @@ struct Client_info clients[2];
 int nb_client = 0;
 int listen_s;
 
-uint32_t SERVERPORT = 7777;
+uint16_t SERVERPORT = 7777;
 fd_set listen_set, clients_set;
 
-int max(int a, int b)
-{
-    return a > b ? a : b;
-}
+
 
 bool swap_player()
 {
@@ -31,6 +28,8 @@ bool swap_player()
     clients[1] = tmp;
     return false;
 }
+
+
 
 bool handle_connection()
 {
@@ -89,7 +88,7 @@ bool sending_player_turn()
             errmsgf("sprintf\n");
             return true;
         }
-        debug_print("sending...2\n");
+
         if (initWord(&msg, m, 32))
         {
             
@@ -105,7 +104,7 @@ bool sending_player_turn()
         }
 
         
-        if(send_packet(buff, clients[y].socket, clients[y].f_w)){
+        if(send_to(buff, clients, y)){
             
             errmsgf("packet2\n");
             return true;
@@ -128,16 +127,19 @@ bool send_score()
             errmsgf("sprintf\n");
             return true;
         }
+
         if (initWord(&msg, m, 32))
         {
             errmsgf("init\n");
             return true;
         }
+
         if (set_packet(buff, (uint8_t *)&msg, sizeof(struct Word), MSG))
         {
             return true;
         }
-        if (send_packet(buff, clients[y].socket, clients[y].f_w))
+
+        if (send_to(buff, clients, y))
         {
             return true;
         }
@@ -152,7 +154,7 @@ bool ask_maxword()
     {
         return true;
     }
-    if (send_packet(buff, clients[0].socket, clients[0].f_w))
+    if (send_to(buff, clients, 0))
     {
         return true;
     }
@@ -164,7 +166,6 @@ bool ask_maxword()
     }
     if (buff[0] == MAXWORD)
     {
-        debug_print("MAXWORD PACKET\n");
         printf("Player bet on %d words\n", buff[1]);
         game.rounds[game.roundIndex].maxWord = buff[1];
     }
@@ -176,14 +177,241 @@ bool ask_maxword()
     return false;
 }
 
+bool ask_word(){
+    uint8_t buff[MAX];
+    if (set_packet(buff, NULL, 0, WORD))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    bzero(buff, MAX);
+    if (recv_from(buff, clients, 0))
+    {
+        return true;
+    }
+    if (buff[0] == WORD)
+    {
+        memcpy(&(game.rounds[game.roundIndex].word), buff+1, sizeof(struct Word));
+        printf("Player 1 choose word : %s\n", game.rounds[game.roundIndex].word.word);
+    }
+    else
+    {
+        debug_print("WRONG PACKET\n");
+        return true;
+    }
+    return false;
+
+
+}
+
+
+bool ask_hint(){
+    uint8_t buff[MAX];
+    if (set_packet(buff, NULL, 0, WHINT))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    bzero(buff, MAX);
+
+    if (recv_from(buff, clients, 0))
+    {
+        return true;
+    }
+    if (buff[0] == WHINT)
+    {  
+        struct Word tmp;
+        memcpy(&tmp, buff+1, sizeof(struct Word));
+        addWord(&(game.rounds[game.roundIndex].wordsHint),tmp.word,tmp.size);
+        printf("Player 1 give the hint : %s\n",tmp.word);
+        game.rounds[game.roundIndex].wordHintIndex++;
+
+    }
+    else
+    {
+        debug_print("WRONG PACKET\n");
+        return true;
+    }
+    return false;
+
+
+}
+
+bool ask_guess(){
+    uint8_t buff[MAX];
+ 
+    if (set_packet(buff, NULL, 0, WGUESS))
+    {
+        return true;
+    }
+
+    if (send_to(buff, clients, 1))
+    {
+        return true;
+    }
+    bzero(buff, MAX);
+
+    if (recv_from(buff, clients, 1))
+    {
+        return true;
+    }
+    if (buff[0] == WGUESS)
+    {  
+
+        struct Word tmp;
+        memcpy(&tmp, buff+1, sizeof(struct Word));
+        addWord(&(game.rounds[game.roundIndex].wordsGuess),tmp.word,tmp.size);
+        printf("Player 2 guess : %s\n",(char*)tmp.word);
+        game.rounds[game.roundIndex].wordHintIndex++;
+
+    }
+    else
+    {
+        debug_print("WRONG PACKET\n");
+        return true;
+    }
+    return false;
+
+
+}
+
+bool send_hint(){
+    uint8_t buff[MAX];
+    if (set_packet(buff,(uint8_t *) &(game.rounds[game.roundIndex].wordsHint), sizeof(struct WordList), HLIST))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 1))
+    {
+        return true;
+    }
+    return false;
+
+
+}
+
+bool send_guess(){
+    uint8_t buff[MAX];
+    if (set_packet(buff,(uint8_t *) &(game.rounds[game.roundIndex].wordsGuess), sizeof(struct WordList), GLIST))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 1))
+    {
+        return true;
+    }
+    return false;
+
+
+}
+bool round_win(){
+    uint8_t buff[MAX];
+    game.score+=(uint8_t)(11-game.rounds[game.roundIndex].maxWord);
+    if (set_packet(buff,NULL,0, WIN))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 1))
+    {
+        return true;
+    }
+    return false;
+
+}
+
+bool round_lose(){
+    uint8_t buff[MAX];
+    if (set_packet(buff,NULL,0, LOSE))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 0))
+    {
+        return true;
+    }
+    if (send_to(buff, clients, 1))
+    {
+        return true;
+    }
+    return false;
+
+}
+
+
+bool guess_phase(){
+ 
+    size_t i;
+
+    for(i = 0; i < game.rounds[game.roundIndex].maxWord;i++){
+   
+        if(ask_hint()){
+
+        }
+
+        if(send_hint()){
+
+        }
+
+        if(ask_guess()){
+            
+        }
+
+        if(send_guess()){
+
+        }
+        if(strcmp((char *)game.rounds[game.roundIndex].wordsGuess.words[game.rounds[game.roundIndex].wordGuessIndex].word,(char *)game.rounds[game.roundIndex].word.word)==0){
+            if(round_win()){
+                return true;
+            }
+            return false;
+            
+        }
+        
+    }
+    if(round_lose()){
+       return true; 
+    }
+    return false;
+
+}
+
+
 bool play_round()
 {
     if (ask_maxword())
     {
         return true;
     }
+    if(ask_word())
+    {
+         return true;
+    }
+    if(guess_phase()){
+        return true;
+    }
+    game.roundIndex++;
     return false;
 }
+
+
 
 bool play_game()
 {
@@ -206,6 +434,7 @@ bool play_game()
             errmsgf("swap_player err\n");
             return true;
         }
+  
 
         if (sending_player_turn())
         {
@@ -225,21 +454,22 @@ int main(int argc, char **argv)
         errmsgf("arg err\n");
         return EXIT_FAILURE;
     }
-    SERVERPORT = (uint32_t)atoi(argv[1]);
+    SERVERPORT = (uint16_t)atoi(argv[1]);
 
-    debug_print("DEBUG TEST\n");
+    debug_print("serverport %s %d\n", IP, SERVERPORT);
     if (make_sockaddr(&serv_addr, IP, SERVERPORT))
     {
         errmsgf("err make sockaddr\n");
         return EXIT_FAILURE;
     }
+    
 
     if (init_socket(&listen_s))
     {
         errmsgf("err init socket\n");
         return EXIT_FAILURE;
     }
-
+    debug_print("socket %d\n", listen_s);
     if (initGame(&game))
     {
         return EXIT_FAILURE;

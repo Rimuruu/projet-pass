@@ -45,6 +45,10 @@ bool initRound(struct Round *round)
             return true;
         }
     }
+    if (initWord(&(round->word), (uint8_t *)"-", 1))
+        {
+            return true;
+        }
     return false;
 }
 
@@ -81,7 +85,7 @@ bool initWordList(struct WordList *wordlist)
     uint8_t i;
     for (i = 0; i < 10; i++)
     {
-        if (initWord(&(wordlist->words[i]), (uint8_t *)"-", 0))
+        if (initWord(&(wordlist->words[i]), (uint8_t *)"-", 1))
         {
             return true;
         }

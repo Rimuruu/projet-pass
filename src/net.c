@@ -1,8 +1,7 @@
 #include "net.h"
 
 bool make_sockaddr(struct sockaddr_in *serv_addr,
-                   char *ip_addr,
-                   uint16_t port)
+                   char *ip_addr,uint16_t port)
 {
     if (inet_aton(ip_addr, &(serv_addr->sin_addr)) == 0)
     {
@@ -31,8 +30,8 @@ bool init_socket(int *s)
 bool init_bind(int *s,
                struct sockaddr *my_addr)
 {
-
-    if (bind(*s, my_addr, sizeof((*my_addr))) == -1)
+    debug_print("socket debug %d\n",(*s));
+    if (bind(*s, my_addr, sizeof(struct sockaddr)) == -1)
     {
         errmsgf("err bind %s\n", strerror(errno));
         return true;
@@ -122,17 +121,16 @@ bool send_packet(uint8_t *packet,
 {
     
     size_t writeV=0;
-    debug_print("writing...\n");
+
     
     writeV = fwrite(packet, sizeof(uint8_t), MAX, f_w);
-    debug_print("writing... %d\n",(int)writeV );
+
    
     debug_print("%d bytes data write\n", (int)writeV);
     if(writeV != MAX) {
         debug_print("%s\n",strerror(errno));
         return true;
     }
-    debug_print("debug %d\n",ferror(f_w));
     if(ferror(f_w) != 0){
         debug_print("ferror %s\n",strerror(errno));
         return true;
@@ -146,7 +144,6 @@ bool recv_packet(uint8_t *packet,
                  int socket, FILE *f_r)
 {
 
-    debug_print("socket %d\n", socket);
     size_t readV=0;
     readV = fread(packet, sizeof(uint8_t), MAX, f_r);
     debug_print("%d bytes data read\n", (int)readV);
@@ -176,15 +173,15 @@ bool recv_from(uint8_t* packet,
     int r;
     uint8_t tmp[MAX] ;
     struct timeval timeout;      
-    timeout.tv_sec = 2;
+    timeout.tv_sec = 1;
     timeout.tv_usec = 0;
     int maxfd = clients[0].socket > clients[1].socket ?clients[0].socket : clients[1].socket; 
+    debug_print("Waiting client %d\n",c);
     while(true){
         FD_ZERO(&set);
         FD_SET(clients[0].socket,&set);
         FD_SET(clients[1].socket,&set);
         r = select(maxfd+1,&set,NULL,NULL,&timeout);
-        debug_print("select %d\n",r);
         if(r == -1){
             return false;
         }
@@ -208,6 +205,7 @@ bool recv_from(uint8_t* packet,
                     if(recv_packet(packet,clients[1].socket,clients[1].f_r)){
                         return true;
                     }
+                    return false;
                 }else{
                     if(recv_packet(tmp,clients[1].socket,clients[1].f_r)){
                          return true;
@@ -218,6 +216,54 @@ bool recv_from(uint8_t* packet,
             }
         }
     }
+
+    
+}
+
+
+
+bool send_to(
+            uint8_t* packet,struct Client_info* clients,int c){
+    fd_set set;
+    int r;
+    uint8_t tmp[MAX] ;
+    struct timeval timeout;      
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    int maxfd = clients[0].socket > clients[1].socket ?clients[0].socket : clients[1].socket; 
+    FD_ZERO(&set);
+    FD_SET(clients[0].socket,&set);
+    FD_SET(clients[1].socket,&set);
+    r = select(maxfd+1,&set,NULL,NULL,&timeout);
+    if(r == -1){
+        return false;
+    }
+    if(r > 0){
+        if(FD_ISSET(clients[0].socket,&set)){
+          
+            if(recv_packet(tmp,clients[0].socket,clients[0].f_r)){
+                
+                return true;
+            }
+            debug_print("Didn't ask client\n");
+       
+        }
+        if(FD_ISSET(clients[1].socket,&set)){
+            
+            if(recv_packet(tmp,clients[1].socket,clients[1].f_r)){
+                    return true;
+        
+            }
+            debug_print("Didn't ask client\n");
+                
+        }
+    }
+
+    if(send_packet(packet, clients[c].socket, clients[c].f_w)){
+        return true;
+    }
+    return false;
+    
 
     
 }

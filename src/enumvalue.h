@@ -10,7 +10,9 @@ enum typeV
     SCORE = 5,
     WGUESS = 6,
     WHINT = 7,
-    FAIL = 8,
-    PING = 9
+    LOSE = 8,
+    PING = 9,
+    WORD = 10,
+    WIN = 11,
 
 };

@@ -7,6 +7,8 @@
 #include "enumvalue.h"
 
 #pragma once
+#define NROUND 2
+
 
 struct Word
 {
@@ -30,6 +32,7 @@ struct Round
 {
     struct WordList wordsHint;
     struct WordList wordsGuess;
+    struct Word word;
     uint8_t wordHintIndex;  // Last word Hint;
     uint8_t wordGuessIndex; // Last word guess;
     uint8_t maxWord;        // Max guess allow
@@ -37,7 +40,7 @@ struct Round
 
 struct Game
 {
-    struct Round rounds[5];
+    struct Round rounds[NROUND];
     uint8_t roundIndex; // Current round
     uint8_t score;
 };

@@ -12,7 +12,7 @@ struct Game game;
 struct Server_info serv_info;
 
 struct sockaddr_in my_addr, serv_addr;
-uint32_t SERVERPORT = 7777;
+uint16_t SERVERPORT = 7777;
 fd_set server_set;
 
 bool process_packet(uint8_t *buff, uint8_t type);
@@ -89,7 +89,7 @@ bool print_word_list(
         printf("[SERVER] : Word Hint Recap \n");
     }
     uint8_t i = 0;
-    for (i = 0; i < 10;)
+    for (i = 0; i < msg.size;i++)
     {
         printf("[SERVER] : Word %d | %s \n", (i + 1), msg.words[i].word);
         sleep(1);
@@ -113,10 +113,42 @@ bool send_maxword(){
                 tmp = 10;
             
         }
-        maxword = tmp;
+        maxword = (uint8_t) tmp;
     }
     printf("You bet on %d words\n", maxword);
     if (set_packet(buff, &maxword, sizeof(uint8_t), MAXWORD))
+    {
+        return true;
+    }
+    if (send_packet(buff, serv_info.socket, serv_info.f_w))
+    {
+        return true;
+    }
+    return false;
+}
+
+bool send_word(uint8_t type){
+    uint8_t buff[MAX];
+
+    
+    char line[256];
+    struct Word word;
+    if(initWord(&word,(uint8_t*)"Empty",5)){
+        return true;
+    }
+    if (fgets(line, sizeof(line), stdin))
+    {
+        fflush(stdin);
+        debug_print("line %s\n", line);
+        if (sscanf(line, "%s",(char *) &(word.word)) == 1)
+        { 
+           
+            
+        }
+
+    }
+    printf("You choose the word : %s\n",(char *) word.word);
+    if (set_packet(buff,(uint8_t *) &word, sizeof(struct Word), type))
     {
         return true;
     }
@@ -133,21 +165,21 @@ bool ask_maxword()
     int r;
     uint8_t buff[MAX] ;
     struct timeval timeout;      
-    timeout.tv_sec = 2;
+    timeout.tv_sec = 1;
     timeout.tv_usec = 0;
-    int maxfd = stdin > serv_info.socket ? stdin : serv_info.socket; 
+    int maxfd = STDIN_FILENO> serv_info.socket ? STDIN_FILENO : serv_info.socket; 
    
     printf("Take your bet (max 10) :\n");
     while(true){
         FD_ZERO(&set);
-        FD_SET(STDIN,&set);
+        FD_SET(STDIN_FILENO,&set);
         FD_SET(serv_info.socket,&set);
         r = select(maxfd+1,&set,NULL,NULL,&timeout);
         if(r == -1){
             return true;
         }
         if(r > 0 ){
-            if(FD_ISSET(STDIN,&set)){
+            if(FD_ISSET(STDIN_FILENO,&set)){
                 if(send_maxword()){
                     return true;
                 }
@@ -167,14 +199,77 @@ bool ask_maxword()
     }
 }
 
+
+bool ask_word(uint8_t type)
+{
+    fd_set set;
+    int r;
+    uint8_t buff[MAX] ;
+    struct timeval timeout;      
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    int maxfd = STDIN_FILENO> serv_info.socket ? STDIN_FILENO : serv_info.socket; 
+   
+    switch(type){
+        case WGUESS:
+            printf("Take a guess (max 32 char) :\n");
+            break;
+        case WHINT:
+            printf("Give a hint to your partner (max 32 char) :\n");
+            break;
+        case WORD:
+            printf("Type the word you want to be guessing (max 32 char) :\n");
+            break;
+    }
+
+
+    while(true){
+        FD_ZERO(&set);
+        FD_SET(STDIN_FILENO,&set);
+        FD_SET(serv_info.socket,&set);
+        r = select(maxfd+1,&set,NULL,NULL,&timeout);
+        if(r == -1){
+            return true;
+        }
+        if(r > 0 ){
+            if(FD_ISSET(STDIN_FILENO,&set)){
+                if(send_word(type)){
+                    return true;
+                }
+                return false;
+            }
+            if(FD_ISSET(serv_info.socket,&set)){
+                if (recv_packet(buff, serv_info.socket, serv_info.f_r))
+                {
+                    return true;
+                }
+                if (process_packet(buff + 1, buff[0]))
+                {
+                    return true;
+                }
+            }
+        }
+    }
+}
+
+
+
 bool process_packet(uint8_t *buff, uint8_t type)
 {
 
     switch (type)
     {
     case WHINT:
+        if (ask_word(WHINT))
+        {
+            return true;
+        }
         break;
     case WGUESS:
+        if (ask_word(WGUESS))
+        {
+            return true;
+        }
         break;
     case MAXWORD:
         if (ask_maxword())
@@ -200,13 +295,19 @@ bool process_packet(uint8_t *buff, uint8_t type)
             return true;
         }
         break;
-    case FAIL:
+    case LOSE:
         printf("You have exhausted all you attempt.\n");
         break;
     case SCORE:
         printf("Your score is %d \n", buff[0]);
         break;
     case PING:
+        break;
+    case WORD:
+        if (ask_word(WORD))
+        {
+            return true;
+        }
         break;
     default:
         debug_print("Unknown packet\n");
@@ -240,7 +341,7 @@ int main(int argc, char **argv)
         errmsgf("arg err\n");
         return EXIT_FAILURE;
     }
-    SERVERPORT = (uint32_t)atoi(argv[1]);
+    SERVERPORT = (uint16_t)atoi(argv[1]);
 
     if (initGame(&game))
     {

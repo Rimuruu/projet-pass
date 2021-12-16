@@ -33,8 +33,7 @@ struct Server_info
 };
 
 bool make_sockaddr(struct sockaddr_in *serv_addr,
-                   char *ip_addr,
-                   uint16_t port);
+                   char *ip_addr,uint16_t port);
 
 bool init_socket(int *s);
 
@@ -61,3 +60,6 @@ bool set_packet(uint8_t *packet,
 
 bool recv_from(uint8_t* packet,
                 struct Client_info* clients,int c);
+
+bool send_to(
+            uint8_t* packet,struct Client_info* clients,int c);
