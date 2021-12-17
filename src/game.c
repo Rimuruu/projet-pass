@@ -10,7 +10,7 @@ bool initGame(struct Game *game)
     }
     game->roundIndex = 0;
     game->score = 0;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < NROUND; i++)
     {
         if (initRound(game->rounds + i))
         {
@@ -151,7 +151,7 @@ bool print_Game(struct Game *game)
     }
     printf("Score %" PRIu32 " Round %" PRIu32 " \n", game->score, game->roundIndex);
 
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < NROUND; i++)
     {
         printf("Word round %" PRIu32 " ", i);
         if (print_Round(game->rounds + i))

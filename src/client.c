@@ -148,6 +148,7 @@ bool send_word(uint8_t type){
 
     }
     printf("You choose the word : %s\n",(char *) word.word);
+    word.size = strlen((char *)word.word);
     if (set_packet(buff,(uint8_t *) &word, sizeof(struct Word), type))
     {
         return true;
@@ -297,6 +298,9 @@ bool process_packet(uint8_t *buff, uint8_t type)
         break;
     case LOSE:
         printf("You have exhausted all you attempt.\n");
+        break;
+    case WIN:
+        printf("You guessed the correct word.\n");
         break;
     case SCORE:
         printf("Your score is %d \n", buff[0]);
