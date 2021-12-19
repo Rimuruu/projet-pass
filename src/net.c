@@ -1,7 +1,39 @@
 #include "net.h"
 
+void packet_size(size_t *size,
+                 uint8_t type)
+{
+    switch (type)
+    {
+    case MSG:
+        (*size) = sizeof(struct Message);
+        break;
+    case MAXWORD:
+        (*size) = sizeof(uint8_t);
+        break;
+    case GLIST:
+        (*size) = sizeof(struct WordList);
+        break;
+    case HLIST:
+        (*size) = sizeof(struct WordList);
+        break;
+    case WGUESS:
+        (*size) = sizeof(struct Word);
+        break;
+    case WHINT:
+        (*size) = sizeof(struct Word);
+        break;
+    case WORD:
+        (*size) = sizeof(struct Word);
+        break;
+    default:
+        (*size) = 0;
+        break;
+    }
+}
+
 bool make_sockaddr(struct sockaddr_in *serv_addr,
-                   char *ip_addr,uint16_t port)
+                   char *ip_addr, uint16_t port)
 {
     if (inet_aton(ip_addr, &(serv_addr->sin_addr)) == 0)
     {
@@ -30,7 +62,7 @@ bool init_socket(int *s)
 bool init_bind(int *s,
                struct sockaddr *my_addr)
 {
-    debug_print("socket debug %d\n",(*s));
+    debug_print("socket debug %d %p\n", *s, s);
     if (bind(*s, my_addr, sizeof(struct sockaddr)) == -1)
     {
         errmsgf("err bind %s\n", strerror(errno));
@@ -99,7 +131,7 @@ bool close_socket(int *s)
     return false;
 }
 
-bool set_packet(uint8_t *packet,
+bool set_packet(struct Packet *p,
                 uint8_t *data, size_t size_struct, enum typeV type)
 {
     if (size_struct > 1023)
@@ -107,163 +139,253 @@ bool set_packet(uint8_t *packet,
         errmsgf("err packet too big \n");
         return true;
     }
-    packet[0] = type;
+    p->data[0] = (uint8_t)type;
     if (size_struct > 0)
     {
 
-        memcpy(packet + 1, data, size_struct);
+        memcpy(p->data + 1, data, size_struct);
     }
+    p->size = size_struct + 1;
     return false;
 }
 
-bool send_packet(uint8_t *packet,
+bool send_packet(struct Packet *p,
                  int socket, FILE *f_w)
 {
-    
-    size_t writeV=0;
 
-    
-    writeV = fwrite(packet, sizeof(uint8_t), MAX, f_w);
+    size_t writeV = 0;
 
-   
-    debug_print("%d bytes data write\n", (int)writeV);
-    if(writeV != MAX) {
-        debug_print("%s\n",strerror(errno));
+    writeV = fwrite(p->data, sizeof(uint8_t), 1, f_w);
+
+    debug_print("%d %d bytes data write\n", p->data[0], (int)writeV);
+    if (writeV != 1)
+    {
+        debug_print("%s\n", strerror(errno));
         return true;
     }
-    if(ferror(f_w) != 0){
-        debug_print("ferror %s\n",strerror(errno));
+    if (ferror(f_w) != 0)
+    {
+        debug_print("ferror %s\n", strerror(errno));
         return true;
     }
-    fflush(f_w);
-    
+    if (fflush(f_w) == EOF)
+    {
+        return true;
+    }
+    if (p->size - 1 != 0)
+    {
+        writeV = fwrite(p->data + 1, sizeof(uint8_t), p->size - 1, f_w);
+
+        debug_print("%d bytes data write\n", (int)writeV);
+        if (writeV != p->size - 1)
+        {
+            debug_print("%s\n", strerror(errno));
+            return true;
+        }
+        if (ferror(f_w) != 0)
+        {
+            debug_print("ferror %s\n", strerror(errno));
+            return true;
+        }
+        if (fflush(f_w) == EOF)
+        {
+            return true;
+        }
+    }
 
     return false;
 }
-bool recv_packet(uint8_t *packet,
+bool recv_packet(struct Packet *p,
                  int socket, FILE *f_r)
 {
 
-    size_t readV=0;
-    readV = fread(packet, sizeof(uint8_t), MAX, f_r);
+    size_t readV = 0;
+    readV = fread(p->data, sizeof(uint8_t), p->size, f_r);
     debug_print("%d bytes data read\n", (int)readV);
-    if (readV  == 0)
+    if (readV == 0)
     {
-        if(feof(f_r) != 0){
+        if (feof(f_r) != 0)
+        {
             debug_print("Socket disconnect \n");
             return true;
         }
-        if(ferror(f_r) != 0){
+        if (ferror(f_r) != 0)
+        {
             errmsgf("Error read \n");
             return true;
         }
     }
-    if(readV > MAX){
+    if (readV != p->size)
+    {
         return true;
     }
-    fflush(f_r);
-    debug_print("Packet type: %d \n", (int)packet[0]);
-    
+    if (fflush(f_r) == EOF)
+    {
+        return true;
+    }
+    debug_print("Packet type: %d \n", (int)p->data[0]);
+
     return false;
 }
 
-bool recv_from(uint8_t* packet,
-                struct Client_info* clients,int c){
+bool recv_unknown_packet(struct Packet *p,
+                         int socket, FILE *f_r)
+{
+
+    size_t readV = 0;
+
+    readV = fread(p->data, sizeof(uint8_t), 1, f_r);
+
+    debug_print("%d bytes data read\n", (int)readV);
+    if (readV == 0)
+    {
+        if (feof(f_r) != 0)
+        {
+            debug_print("Socket disconnect \n");
+            return true;
+        }
+        if (ferror(f_r) != 0)
+        {
+            errmsgf("Error read \n");
+            return true;
+        }
+    }
+    if (fflush(f_r) == EOF)
+    {
+        return true;
+    }
+
+    packet_size(&(p->size), p->data[0]);
+    debug_print("Waiting %d %" PRIu8 " bytes data read\n", (int)p->size, p->data[0]);
+    readV = fread(p->data + 1, sizeof(uint8_t), p->size, f_r);
+
+    if (readV != p->size)
+    {
+        return true;
+    }
+    if (fflush(f_r) == EOF)
+    {
+        return true;
+    }
+
+    debug_print("Packet type: %d \n", (int)p->data[0]);
+
+    return false;
+}
+
+bool recv_from(struct Packet *p,
+               struct Client_info *clients, int c)
+{
     fd_set set;
     int r;
-    uint8_t tmp[MAX] ;
-    struct timeval timeout;      
+
+    struct timeval timeout;
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
-    int maxfd = clients[0].socket > clients[1].socket ?clients[0].socket : clients[1].socket; 
-    debug_print("Waiting client %d\n",c);
-    while(true){
+    int maxfd = clients[0].socket > clients[1].socket ? clients[0].socket : clients[1].socket;
+    struct Packet tmp;
+    tmp.size = p->size;
+    debug_print("Waiting client %d\n", c);
+    //We check every socket as we wait a packet from client c
+    while (true)
+    {
         FD_ZERO(&set);
-        FD_SET(clients[0].socket,&set);
-        FD_SET(clients[1].socket,&set);
-        r = select(maxfd+1,&set,NULL,NULL,&timeout);
-        if(r == -1){
+        FD_SET(clients[0].socket, &set);
+        FD_SET(clients[1].socket, &set);
+        r = select(maxfd + 1, &set, NULL, NULL, &timeout);
+        if (r == -1)
+        {
             return false;
         }
-        if(r > 0){
-            if(FD_ISSET(clients[0].socket,&set)){
-                if(c == 0){
-                    if(recv_packet(packet,clients[0].socket,clients[0].f_r)){
+        if (r > 0)
+        {
+            if (FD_ISSET(clients[0].socket, &set))
+            {
+                if (c == 0)
+                {
+                    if (recv_packet(p, clients[0].socket, clients[0].f_r))
+                    {
                         return true;
                     }
                     return false;
-                }else{
-                    if(recv_packet(tmp,clients[0].socket,clients[0].f_r)){
-                        
+                }
+                else
+                {
+                    if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
+                    {
+
                         return true;
                     }
                     debug_print("Didn't ask client\n");
                 }
             }
-            if(FD_ISSET(clients[1].socket,&set)){
-                if(c == 1){
-                    if(recv_packet(packet,clients[1].socket,clients[1].f_r)){
+            if (FD_ISSET(clients[1].socket, &set))
+            {
+                if (c == 1)
+                {
+                    if (recv_packet(p, clients[1].socket, clients[1].f_r))
+                    {
                         return true;
                     }
                     return false;
-                }else{
-                    if(recv_packet(tmp,clients[1].socket,clients[1].f_r)){
-                         return true;
-                
+                }
+                else
+                {
+                    if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
+                    {
+                        return false;
                     }
                     debug_print("Didn't ask client\n");
-                    }
+                }
             }
         }
     }
-
-    
 }
 
-
-
 bool send_to(
-            uint8_t* packet,struct Client_info* clients,int c){
+    struct Packet *p, struct Client_info *clients, int c)
+{
     fd_set set;
     int r;
-    uint8_t tmp[MAX] ;
-    struct timeval timeout;      
+    struct Packet tmp;
+    struct timeval timeout;
     timeout.tv_sec = 1;
     timeout.tv_usec = 0;
-    int maxfd = clients[0].socket > clients[1].socket ?clients[0].socket : clients[1].socket; 
+    int maxfd = clients[0].socket > clients[1].socket ? clients[0].socket : clients[1].socket;
     FD_ZERO(&set);
-    FD_SET(clients[0].socket,&set);
-    FD_SET(clients[1].socket,&set);
-    r = select(maxfd+1,&set,NULL,NULL,&timeout);
-    if(r == -1){
+    FD_SET(clients[0].socket, &set);
+    FD_SET(clients[1].socket, &set);
+    r = select(maxfd + 1, &set, NULL, NULL, &timeout);
+    if (r == -1)
+    {
         return false;
     }
-    if(r > 0){
-        if(FD_ISSET(clients[0].socket,&set)){
-          
-            if(recv_packet(tmp,clients[0].socket,clients[0].f_r)){
-                
+    //before sending the packet we check every socket
+    if (r > 0)
+    {
+        if (FD_ISSET(clients[0].socket, &set))
+        {
+
+            if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
+            {
                 return true;
             }
             debug_print("Didn't ask client\n");
-       
         }
-        if(FD_ISSET(clients[1].socket,&set)){
-            
-            if(recv_packet(tmp,clients[1].socket,clients[1].f_r)){
-                    return true;
-        
+        if (FD_ISSET(clients[1].socket, &set))
+        {
+
+            if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
+            {
+                return true;
             }
             debug_print("Didn't ask client\n");
-                
         }
     }
 
-    if(send_packet(packet, clients[c].socket, clients[c].f_w)){
+    if (send_packet(p, clients[c].socket, clients[c].f_w))
+    {
         return true;
     }
     return false;
-    
-
-    
 }

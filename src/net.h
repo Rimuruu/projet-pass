@@ -1,4 +1,5 @@
 
+#pragma once
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -13,8 +14,8 @@
 #include <sys/select.h>
 #include "enumvalue.h"
 
-#pragma once
 #define MAX 1024
+
 struct Client_info
 {
     struct sockaddr_in addr;
@@ -32,8 +33,14 @@ struct Server_info
     int socket;
 };
 
+struct Packet
+{
+    uint8_t data[MAX];
+    size_t size;
+};
+
 bool make_sockaddr(struct sockaddr_in *serv_addr,
-                   char *ip_addr,uint16_t port);
+                   char *ip_addr, uint16_t port);
 
 bool init_socket(int *s);
 
@@ -50,16 +57,18 @@ bool connection_server(
 
 bool close_socket(int *s);
 
-bool send_packet(uint8_t *packet,
+bool send_packet(struct Packet *p,
                  int socket, FILE *f_w);
-bool recv_packet(uint8_t *packet,
+bool recv_packet(struct Packet *p,
                  int socket, FILE *f_r);
+bool recv_unknown_packet(struct Packet *p,
+                         int socket, FILE *f_r);
 
-bool set_packet(uint8_t *packet,
+bool set_packet(struct Packet *p,
                 uint8_t *data, size_t size_struct, enum typeV typ);
 
-bool recv_from(uint8_t* packet,
-                struct Client_info* clients,int c);
+bool recv_from(struct Packet *p,
+               struct Client_info *clients, int c);
 
 bool send_to(
-            uint8_t* packet,struct Client_info* clients,int c);
+    struct Packet *p, struct Client_info *clients, int c);

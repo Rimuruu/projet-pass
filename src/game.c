@@ -1,5 +1,7 @@
 #include "game.h"
 
+int NROUND = 0;
+
 bool initGame(struct Game *game)
 {
     uint32_t i;
@@ -10,6 +12,7 @@ bool initGame(struct Game *game)
     }
     game->roundIndex = 0;
     game->score = 0;
+
     for (i = 0; i < NROUND; i++)
     {
         if (initRound(game->rounds + i))
@@ -46,9 +49,9 @@ bool initRound(struct Round *round)
         }
     }
     if (initWord(&(round->word), (uint8_t *)"-", 1))
-        {
-            return true;
-        }
+    {
+        return true;
+    }
     return false;
 }
 
@@ -60,7 +63,7 @@ bool initWord(struct Word *word,
         errmsgf("Word null");
         return true;
     }
-    if (size > 32)
+    if (size > MAXW)
     {
         errmsgf("Word too long");
         return true;
@@ -72,6 +75,29 @@ bool initWord(struct Word *word,
         return true;
     }
     word->size = size;
+    return false;
+}
+
+bool initMsg(struct Message *msg,
+             uint8_t *msg_p, uint8_t size)
+{
+    if (msg == NULL)
+    {
+        errmsgf("msg null");
+        return true;
+    }
+    if (size > MAXMSG)
+    {
+        errmsgf("Msg too long");
+        return true;
+    }
+    bzero(msg->msg, MAXMSG);
+    if (memcpy(msg->msg, msg_p, size) == NULL)
+    {
+        errmsgf("strcpy error");
+        return true;
+    }
+    msg->size = size;
     return false;
 }
 
@@ -116,7 +142,7 @@ bool print_Word(struct Word *word)
         errmsgf("Word null");
         return true;
     }
-    printf("Word %s size %" PRIu32 " \n", (char *)word->word, word->size);
+    debug_print("Word %s size %" PRIu32 " \n", (char *)word->word, word->size);
     return false;
 }
 
@@ -128,14 +154,14 @@ bool print_Round(struct Round *round)
         errmsgf("Round null");
         return true;
     }
-    printf("wordHintIndex %" PRIu32 " wordGuessIndex %" PRIu32 " maxWord %" PRIu32 " \n", round->wordHintIndex, round->wordGuessIndex, round->maxWord);
+    debug_print("wordHintIndex %" PRIu32 " wordGuessIndex %" PRIu32 " maxWord %" PRIu32 " \n", round->wordHintIndex, round->wordGuessIndex, round->maxWord);
     for (i = 0; i < 10; i++)
     {
 
-        printf("Word tips %" PRIu32 " ", i);
+        debug_print("Word tips %" PRIu32 " ", i);
         if (print_Word(round->wordsHint.words + i))
             return false;
-        printf("Word guess %" PRIu32 " ", i);
+        debug_print("Word guess %" PRIu32 " ", i);
         if (print_Word(round->wordsGuess.words + i))
             return false;
     }
@@ -149,11 +175,11 @@ bool print_Game(struct Game *game)
         errmsgf("Game is null");
         return true;
     }
-    printf("Score %" PRIu32 " Round %" PRIu32 " \n", game->score, game->roundIndex);
+    debug_print("Score %" PRIu32 " Round %" PRIu32 " \n", game->score, game->roundIndex);
 
     for (i = 0; i < NROUND; i++)
     {
-        printf("Word round %" PRIu32 " ", i);
+        debug_print("Word round %" PRIu32 " ", i);
         if (print_Round(game->rounds + i))
             return false;
     }
