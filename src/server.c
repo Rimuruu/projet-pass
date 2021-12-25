@@ -17,7 +17,7 @@ int nb_client = 0;
 int listen_s;
 
 uint16_t SERVERPORT = 7777;
-fd_set listen_set, clients_set;
+fd_set listen_set;
 
 bool swap_player()
 {
@@ -27,66 +27,143 @@ bool swap_player()
     return false;
 }
 
+void close_client(
+    struct Client_info client)
+{
+    if (close_socket(&(client.socket)))
+    {
+        debug_print("err close socket\n");
+    }
+    if (fclose(client.f_w) == EOF)
+    {
+        debug_print("err close file descriptor\n");
+    }
+}
+
+void close_listen()
+{
+    if (close_socket(&listen_s))
+    {
+        debug_print("err close socket\n");
+    }
+}
+
 void close_all_socket()
 {
-    if (close_socket(&clients[0].socket))
+    if (close_socket(&listen_s))
     {
-        errmsgf("err close socket\n");
+        debug_print("err close socket\n");
     }
 
-    if (close_socket(&clients[1].socket))
+    if (close_socket(&(clients[0].socket)))
     {
-        errmsgf("err close socket\n");
+        debug_print("err close socket\n");
+    }
+
+    if (close_socket(&(clients[1].socket)))
+    {
+        debug_print("err close socket\n");
     }
     if (fclose(clients[0].f_w) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
     if (fclose(clients[0].f_r) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
     if (fclose(clients[1].f_w) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
     if (fclose(clients[1].f_r) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
+}
+
+bool check_client()
+{
+    size_t readV = 0;
+    uint8_t tmp;
+    int r;
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    FD_ZERO(&listen_set);
+    FD_SET(clients[0].socket, &listen_set);
+
+    r = select(clients[0].socket + 1, &listen_set, NULL, NULL, &timeout);
+    debug_print("test\n");
+    if (r == -1)
+        return true;
+    if (r > 0)
+    {
+        if (FD_ISSET(clients[0].socket, &listen_set))
+        {
+            readV = fread(&tmp, sizeof(uint8_t), 1, clients[0].f_r);
+            if (readV == 0)
+            {
+                message_print("One player disconnected\n");
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 bool handle_connection()
 {
-
+    int r;
+    message_print("Waiting player to connect\n");
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
     while (true)
     {
         if (nb_client < 2)
         {
-            FD_SET(listen_s, &listen_set);
-            select(listen_s + 1, &listen_set, NULL, NULL, NULL);
-            if (FD_ISSET(listen_s, &listen_set))
+            if (nb_client == 1)
             {
-                if (accept_client(&(clients[nb_client].socket), &listen_s, (struct sockaddr *)&(clients[nb_client].addr), &(clients[nb_client].s_len)))
+                if (check_client())
                 {
-                    errmsgf("err accept\n");
+                    debug_print("Client disconnected\n");
+                    close_client(clients[0]);
+                    nb_client--;
+                    message_print("Number of player %d/2\n", nb_client);
                 }
-                else
+            }
+            FD_ZERO(&listen_set);
+            FD_SET(listen_s, &listen_set);
+            r = select(listen_s + 1, &listen_set, NULL, NULL, &timeout);
+            if (r == -1)
+                return true;
+            if (r > 0)
+            {
+                if (FD_ISSET(listen_s, &listen_set))
                 {
-                    clients[nb_client].f_w = fdopen(clients[nb_client].socket, "w+");
-                    if (clients[nb_client].f_w == NULL)
+                    if (accept_client(&(clients[nb_client].socket), &listen_s, (struct sockaddr *)&(clients[nb_client].addr), &(clients[nb_client].s_len)))
                     {
-                        return true;
+                        debug_print("err accept\n");
                     }
-                    clients[nb_client].f_r = fdopen(clients[nb_client].socket, "r+");
-                    if (clients[nb_client].f_r == NULL)
+                    else
                     {
-                        return true;
-                    }
+                        clients[nb_client].f_w = fdopen(clients[nb_client].socket, "w+");
+                        if (clients[nb_client].f_w == NULL)
+                        {
+                            return true;
+                        }
+                        clients[nb_client].f_r = fdopen(clients[nb_client].socket, "r+");
+                        if (clients[nb_client].f_r == NULL)
+                        {
+                            return true;
+                        }
 
-                    clients[nb_client].status = false;
-                    debug_print("client connected\n");
-                    nb_client++;
+                        clients[nb_client].status = false;
+                        message_print("One player connected\n");
+                        nb_client++;
+                        message_print("Number of player %d/2\n", nb_client);
+                    }
                 }
             }
         }
@@ -101,39 +178,35 @@ bool handle_connection()
 bool sending_player_turn()
 {
     struct Packet p;
-    uint8_t m[256];
+    uint8_t m[32];
     struct Message msg;
-    size_t y;
-    uint8_t size;
+    int y;
+    int size;
 
     for (y = 0; y < 2; y++)
     {
-        size = sprintf((char *)m, "Your are player %ld", y + 1);
+        size = sprintf((char *)m, "Your are player %d", y + 1);
         if (size < 0)
         {
 
-            errmsgf("sprintf\n");
             return true;
         }
 
-        if (initMsg(&msg, m, size))
+        if (initMsg(&msg, m, (uint8_t)size))
         {
 
-            errmsgf("init\n");
             return true;
         }
 
         if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
         {
 
-            errmsgf("packet\n");
             return true;
         }
 
         if (send_to(&p, clients, y))
         {
 
-            errmsgf("packet2\n");
             return true;
         }
     }
@@ -143,10 +216,10 @@ bool sending_player_turn()
 bool send_score()
 {
     struct Packet p;
-    uint8_t m[256];
+    uint8_t m[32];
     struct Message msg;
-    size_t y;
-    uint8_t size;
+    int y;
+    int size;
     for (y = 0; y < 2; y++)
     {
         size = sprintf((char *)m, "Your score %d", game.score);
@@ -156,7 +229,42 @@ bool send_score()
             return true;
         }
 
-        if (initMsg(&msg, m, size))
+        if (initMsg(&msg, m, (uint8_t)size))
+        {
+            errmsgf("init\n");
+            return true;
+        }
+
+        if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
+        {
+            return true;
+        }
+
+        if (send_to(&p, clients, y))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool send_end()
+{
+    struct Packet p;
+    uint8_t m[32];
+    struct Message msg;
+    int y;
+    int size;
+    for (y = 0; y < 2; y++)
+    {
+        size = sprintf((char *)m, "Game over \n Your final score %d", game.score);
+        if (size < 0)
+        {
+            errmsgf("sprintf\n");
+            return true;
+        }
+
+        if (initMsg(&msg, m, (uint8_t)size))
         {
             errmsgf("init\n");
             return true;
@@ -187,6 +295,7 @@ bool ask_maxword()
         return true;
     }
     bzero(p.data, MAX);
+
     //sleep(30);
     if (recv_from(&p, clients, 0))
     {
@@ -217,13 +326,15 @@ bool ask_word()
         return true;
     }
     bzero(p.data, MAX);
+
     if (recv_from(&p, clients, 0))
     {
         return true;
     }
     if (p.data[0] == WORD)
     {
-        memcpy(&(game.rounds[game.roundIndex].word), p.data + 1, sizeof(struct Word));
+        if (memcpy(&(game.rounds[game.roundIndex].word), p.data + 1, sizeof(struct Word)) == NULL)
+            return true;
         message_print("Player 1 choose word : %s\n", game.rounds[game.roundIndex].word.word);
     }
     else
@@ -254,8 +365,14 @@ bool ask_hint()
     if (p.data[0] == WHINT)
     {
         struct Word tmp;
-        memcpy(&tmp, p.data + 1, sizeof(struct Word));
-        addWord(&(game.rounds[game.roundIndex].wordsHint), tmp.word, tmp.size);
+        if (memcpy(&tmp, p.data + 1, sizeof(struct Word)) == NULL)
+        {
+            return true;
+        }
+        if (addWord(&(game.rounds[game.roundIndex].wordsHint), tmp.word, tmp.size))
+        {
+            return true;
+        }
         message_print("Player 1 give the hint : %s\n", tmp.word);
         game.rounds[game.roundIndex].wordHintIndex++;
     }
@@ -290,8 +407,14 @@ bool ask_guess()
     {
 
         struct Word tmp;
-        memcpy(&tmp, p.data + 1, sizeof(struct Word));
-        addWord(&(game.rounds[game.roundIndex].wordsGuess), tmp.word, tmp.size);
+        if (memcpy(&tmp, p.data + 1, sizeof(struct Word)) == NULL)
+        {
+            return true;
+        }
+        if (addWord(&(game.rounds[game.roundIndex].wordsGuess), tmp.word, tmp.size))
+        {
+            return true;
+        }
         message_print("Player 2 guess : %s\n", (char *)tmp.word);
         game.rounds[game.roundIndex].wordHintIndex++;
     }
@@ -459,6 +582,10 @@ bool play_game()
             return true;
         }
     }
+    if (send_end())
+    {
+        return true;
+    }
     return false;
 }
 
@@ -503,7 +630,6 @@ int main(int argc, char **argv)
     }
 
     FD_ZERO(&listen_set);
-    FD_ZERO(&clients_set);
 
     if (init_bind(&listen_s, (struct sockaddr *)&serv_addr))
     {
@@ -522,13 +648,6 @@ int main(int argc, char **argv)
     {
         close_all_socket();
         errmsgf("handle connection\n");
-        return EXIT_FAILURE;
-    }
-
-    if (close_socket(&listen_s))
-    {
-        close_all_socket();
-        errmsgf("err close socket\n");
         return EXIT_FAILURE;
     }
 

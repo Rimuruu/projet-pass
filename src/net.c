@@ -279,9 +279,6 @@ bool recv_from(struct Packet *p,
     fd_set set;
     int r;
 
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
     int maxfd = clients[0].socket > clients[1].socket ? clients[0].socket : clients[1].socket;
     struct Packet tmp;
     tmp.size = p->size;
@@ -289,6 +286,9 @@ bool recv_from(struct Packet *p,
     //We check every socket as we wait a packet from client c
     while (true)
     {
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
         FD_ZERO(&set);
         FD_SET(clients[0].socket, &set);
         FD_SET(clients[1].socket, &set);

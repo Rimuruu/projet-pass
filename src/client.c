@@ -16,29 +16,20 @@ uint16_t SERVERPORT = 7777;
 
 bool process_packet(uint8_t *buff, uint8_t type);
 
-int max(int a, int b)
-{
-    return a > b ? a : b;
-}
-
-int other_player(int a)
-{
-    return a == 0 ? 1 : 0;
-}
-
 void close_all_socket()
 {
+
     if (close_socket(&serv_info.socket))
     {
-        errmsgf("err close socket\n");
+        debug_print("err close socket\n");
     }
     if (fclose(serv_info.f_w) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
-    if (fclose(serv_info.f_w) == EOF)
+    if (fclose(serv_info.f_r) == EOF)
     {
-        errmsgf("err close file descriptor\n");
+        debug_print("err close file descriptor\n");
     }
 }
 
@@ -113,7 +104,10 @@ bool print_word_list(
     for (i = 0; i < msg.size; i++)
     {
         message_print("[SERVER] : Word %d | %s \n", (i + 1), msg.words[i].word);
-        sleep(1);
+        if (sleep(1) != 0)
+        {
+            debug_print("error sleep\n");
+        }
     }
     return false;
 }
@@ -123,18 +117,45 @@ bool send_maxword()
     struct Packet p;
     uint8_t maxword;
 
-    char line[256];
-    if (fgets(line, sizeof(line), stdin))
+    char line[3];
+    if (fgets(line, sizeof(line), stdin) != NULL)
     {
-        fflush(stdin);
+        char *c = strchr(line, '\n');
+        if (c != NULL)
+        { //check exist newline
+            *c = 0;
+        }
+        else
+        {
+            int rl = scanf("%*[^\n]");
+            if (rl == EOF)
+            {
+                if (ferror(stdin))
+                {
+                    debug_print("err scanf %s\n", strerror(errno));
+                }
+            }
+            int cl = scanf("%*c"); //clear upto newline
+            if (cl == EOF)
+            {
+                if (ferror(stdin))
+                {
+                    debug_print("err scanf %s\n", strerror(errno));
+                }
+            }
+        }
         debug_print("line %s\n", line);
-        int tmp = 5;
+        int tmp = 10;
         if (sscanf(line, "%d", &tmp) == 1)
         {
-            if (tmp > 10)
+            if (tmp > 10 || tmp < 1)
                 tmp = 10;
         }
         maxword = (uint8_t)tmp;
+    }
+    else
+    {
+        maxword = 5;
     }
     message_print("You bet on %d words\n", maxword);
     if (set_packet(&p, &maxword, sizeof(uint8_t), MAXWORD))
@@ -152,22 +173,31 @@ bool send_word(uint8_t type)
 {
     struct Packet p;
 
-    char line[256];
+    char line[32];
     struct Word word;
     if (initWord(&word, (uint8_t *)"Empty", 5))
     {
         return true;
     }
-    if (fgets(line, sizeof(line), stdin))
+    if (fgets(line, sizeof(line), stdin) != NULL)
     {
-        fflush(stdin);
+        char *c = strchr(line, '\n');
+        if (c != NULL)
+        { //check exist newline
+            *c = 0;
+        }
+        else
+        {
+            scanf("%*[^\n]");
+            scanf("%*c"); //clear upto newline
+        }
         debug_print("line %s\n", line);
         if (sscanf(line, "%s", (char *)&(word.word)) == 1)
         {
         }
     }
     message_print("You choose the word : %s\n", (char *)word.word);
-    word.size = strlen((char *)word.word);
+    word.size = (uint8_t)strlen((char *)word.word);
     if (set_packet(&p, (uint8_t *)&word, sizeof(struct Word), type))
     {
         return true;
@@ -184,14 +214,15 @@ bool ask_maxword()
     fd_set set;
     int r;
     struct Packet p;
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
+
     int maxfd = STDIN_FILENO > serv_info.socket ? STDIN_FILENO : serv_info.socket;
 
     message_print("Take your bet (max 10) :\n");
     while (true)
     {
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
         FD_ZERO(&set);
         FD_SET(STDIN_FILENO, &set);
         FD_SET(serv_info.socket, &set);
@@ -230,9 +261,7 @@ bool ask_word(uint8_t type)
     fd_set set;
     int r;
     struct Packet p;
-    struct timeval timeout;
-    timeout.tv_sec = 1;
-    timeout.tv_usec = 0;
+
     int maxfd = STDIN_FILENO > serv_info.socket ? STDIN_FILENO : serv_info.socket;
 
     switch (type)
@@ -250,6 +279,9 @@ bool ask_word(uint8_t type)
 
     while (true)
     {
+        struct timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
         FD_ZERO(&set);
         FD_SET(STDIN_FILENO, &set);
         FD_SET(serv_info.socket, &set);

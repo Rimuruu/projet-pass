@@ -3,13 +3,16 @@
 #include <stdarg.h>
 #include "errhandlers.h"
 
-void errmsgf(char *format,...) {
+void errmsgf(char *format, ...)
+{
   va_list p;
-  va_start(p,format);
-  vfprintf(stderr,format,p);
+  va_start(p, format);
+  vfprintf(stderr, "\033[0;31m", NULL);
+  vfprintf(stderr, format, p);
   va_end(p);
 }
 
-void syserr(char *message) {
+void syserr(char *message)
+{
   perror(message);
 }

@@ -69,6 +69,7 @@ bool initWord(struct Word *word,
         return true;
     }
     bzero(word->word, 32);
+
     if (memcpy(word->word, word_p, size) == NULL)
     {
         errmsgf("strcpy error");
@@ -92,6 +93,7 @@ bool initMsg(struct Message *msg,
         return true;
     }
     bzero(msg->msg, MAXMSG);
+
     if (memcpy(msg->msg, msg_p, size) == NULL)
     {
         errmsgf("strcpy error");

@@ -1,6 +1,6 @@
 
 CC=	gcc
-CFLAGS= -Wall -Werror 
+CFLAGS= -Wall -Werror -Wconversion
 
 
 all :client	server
