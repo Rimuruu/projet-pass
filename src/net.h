@@ -72,3 +72,5 @@ bool recv_from(struct Packet *p,
 
 bool send_to(
     struct Packet *p, struct Client_info *clients, int c);
+
+bool send_disconnect(struct Client_info client);

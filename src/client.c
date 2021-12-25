@@ -94,16 +94,16 @@ bool print_word_list(
     }
     if (type == GLIST)
     {
-        message_print("[SERVER] : Word Guess Recap \n");
+        message_print("Word Guess Recap \n");
     }
     else
     {
-        message_print("[SERVER] : Word Hint Recap \n");
+        message_print("Word Hint Recap \n");
     }
     uint8_t i = 0;
     for (i = 0; i < msg.size; i++)
     {
-        message_print("[SERVER] : Word %d | %s \n", (i + 1), msg.words[i].word);
+        message_print("Word %d | %s \n", (i + 1), msg.words[i].word);
         if (sleep(1) != 0)
         {
             debug_print("error sleep\n");
@@ -188,8 +188,22 @@ bool send_word(uint8_t type)
         }
         else
         {
-            scanf("%*[^\n]");
-            scanf("%*c"); //clear upto newline
+            int rl = scanf("%*[^\n]");
+            if (rl == EOF)
+            {
+                if (ferror(stdin))
+                {
+                    debug_print("err scanf %s\n", strerror(errno));
+                }
+            }
+            int cl = scanf("%*c"); //clear upto newline
+            if (cl == EOF)
+            {
+                if (ferror(stdin))
+                {
+                    debug_print("err scanf %s\n", strerror(errno));
+                }
+            }
         }
         debug_print("line %s\n", line);
         if (sscanf(line, "%s", (char *)&(word.word)) == 1)
@@ -243,7 +257,7 @@ bool ask_maxword()
             }
             if (FD_ISSET(serv_info.socket, &set))
             {
-                if (recv_packet(&p, serv_info.socket, serv_info.f_r))
+                if (recv_unknown_packet(&p, serv_info.socket, serv_info.f_r))
                 {
                     return true;
                 }
@@ -302,7 +316,7 @@ bool ask_word(uint8_t type)
             }
             if (FD_ISSET(serv_info.socket, &set))
             {
-                if (recv_packet(&p, serv_info.socket, serv_info.f_r))
+                if (recv_unknown_packet(&p, serv_info.socket, serv_info.f_r))
                 {
                     return true;
                 }

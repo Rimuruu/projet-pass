@@ -246,7 +246,7 @@ bool recv_unknown_packet(struct Packet *p,
         }
         if (ferror(f_r) != 0)
         {
-            errmsgf("Error read \n");
+            debug_print("Error read \n");
             return true;
         }
     }
@@ -305,6 +305,10 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(p, clients[0].socket, clients[0].f_r))
                     {
+                        if (send_disconnect(clients[1]))
+                        {
+                            return true;
+                        }
                         return true;
                     }
                     return false;
@@ -314,6 +318,10 @@ bool recv_from(struct Packet *p,
                     if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
                     {
 
+                        if (send_disconnect(clients[1]))
+                        {
+                            return true;
+                        }
                         return true;
                     }
                     debug_print("Didn't ask client\n");
@@ -325,6 +333,10 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(p, clients[1].socket, clients[1].f_r))
                     {
+                        if (send_disconnect(clients[0]))
+                        {
+                            return true;
+                        }
                         return true;
                     }
                     return false;
@@ -333,13 +345,64 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
                     {
-                        return false;
+                        if (send_disconnect(clients[0]))
+                        {
+                            return true;
+                        }
+                        return true;
                     }
                     debug_print("Didn't ask client\n");
                 }
             }
         }
     }
+}
+
+bool send_disconnect(struct Client_info client)
+{
+    fd_set set;
+    int r;
+    struct Packet p;
+    struct Packet tmp;
+    struct timeval timeout;
+    struct Message msg;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
+    if (initMsg(&msg, (uint8_t *)"Game over \n The other player has disconnected", 46))
+    {
+        debug_print("init\n");
+        return true;
+    }
+
+    if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
+    {
+        return true;
+    }
+
+    FD_ZERO(&set);
+    FD_SET(client.socket, &set);
+    r = select(client.socket + 1, &set, NULL, NULL, &timeout);
+    if (r == -1)
+    {
+        return false;
+    }
+    //before sending the packet we check every socket
+    if (r > 0)
+    {
+        if (FD_ISSET(client.socket, &set))
+        {
+
+            if (recv_packet(&tmp, client.socket, client.f_r))
+            {
+                return true;
+            }
+        }
+    }
+    if (send_packet(&p, client.socket, client.f_w))
+    {
+        return true;
+    }
+    return false;
 }
 
 bool send_to(
@@ -368,6 +431,10 @@ bool send_to(
 
             if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
             {
+                if (send_disconnect(clients[1]))
+                {
+                    return true;
+                }
                 return true;
             }
             debug_print("Didn't ask client\n");
@@ -377,6 +444,10 @@ bool send_to(
 
             if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
             {
+                if (send_disconnect(clients[0]))
+                {
+                    return true;
+                }
                 return true;
             }
             debug_print("Didn't ask client\n");
