@@ -65,12 +65,14 @@ bool recv_unknown_packet(struct Packet *p,
                          int socket, FILE *f_r);
 
 bool set_packet(struct Packet *p,
-                uint8_t *data, size_t size_struct, enum typeV typ);
+                uint8_t *data, size_t size_struct, enum typeV type);
 
 bool recv_from(struct Packet *p,
-               struct Client_info *clients, int c);
+               struct Client_info *clients, int c, int *listen_s);
 
 bool send_to(
-    struct Packet *p, struct Client_info *clients, int c);
+    struct Packet *p, struct Client_info *clients, int c, int *listen_s);
 
 bool send_disconnect(struct Client_info client);
+
+bool handle_full(int *socket);

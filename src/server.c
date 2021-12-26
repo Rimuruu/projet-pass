@@ -14,7 +14,6 @@ struct sockaddr_in serv_addr;
 struct Client_info clients[2];
 int nb_client = 0;
 int listen_s;
-
 uint16_t SERVERPORT = 7777;
 char SERVERIP[16] = "127.0.0.1";
 fd_set listen_set;
@@ -204,7 +203,7 @@ bool sending_player_turn()
             return true;
         }
 
-        if (send_to(&p, clients, y))
+        if (send_to(&p, clients, y, &listen_s))
         {
 
             return true;
@@ -240,7 +239,7 @@ bool send_score()
             return true;
         }
 
-        if (send_to(&p, clients, y))
+        if (send_to(&p, clients, y, &listen_s))
         {
             return true;
         }
@@ -275,7 +274,7 @@ bool send_end()
             return true;
         }
 
-        if (send_to(&p, clients, y))
+        if (send_to(&p, clients, y, &listen_s))
         {
             return true;
         }
@@ -310,7 +309,7 @@ bool send_bet()
             return true;
         }
 
-        if (send_to(&p, clients, y))
+        if (send_to(&p, clients, y, &listen_s))
         {
             return true;
         }
@@ -325,14 +324,14 @@ bool ask_maxword()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
     bzero(p.data, MAX);
 
     //sleep(30);
-    if (recv_from(&p, clients, 0))
+    if (recv_from(&p, clients, 0, &listen_s))
     {
         return true;
     }
@@ -348,6 +347,39 @@ bool ask_maxword()
     }
     return false;
 }
+bool send_retry()
+{
+    struct Packet p;
+    uint8_t m[32];
+    struct Message msg;
+
+    int size;
+
+    size = sprintf((char *)m, "The hint can't be the guess\n");
+    if (size < 0)
+    {
+        errmsgf("sprintf\n");
+        return true;
+    }
+
+    if (initMsg(&msg, m, (uint8_t)size))
+    {
+        errmsgf("init\n");
+        return true;
+    }
+
+    if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
+    {
+        return true;
+    }
+
+    if (send_to(&p, clients, 0, &listen_s))
+    {
+        return true;
+    }
+
+    return false;
+}
 
 bool ask_word()
 {
@@ -356,13 +388,13 @@ bool ask_word()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
     bzero(p.data, MAX);
 
-    if (recv_from(&p, clients, 0))
+    if (recv_from(&p, clients, 0, &listen_s))
     {
         return true;
     }
@@ -387,13 +419,13 @@ bool ask_hint()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
     bzero(p.data, MAX);
 
-    if (recv_from(&p, clients, 0))
+    if (recv_from(&p, clients, 0, &listen_s))
     {
         return true;
     }
@@ -403,6 +435,18 @@ bool ask_hint()
         if (memcpy(&tmp, p.data + 1, sizeof(struct Word)) == NULL)
         {
             return true;
+        }
+        if (strcmp((char *)tmp.word, (char *)game.rounds[game.roundIndex].word.word) == 0)
+        {
+            if (send_retry())
+            {
+                return true;
+            }
+            if (ask_hint())
+            {
+                return true;
+            }
+            return false;
         }
         if (addWord(&(game.rounds[game.roundIndex].wordsHint), tmp.word, tmp.size))
         {
@@ -429,13 +473,13 @@ bool ask_guess()
         return true;
     }
 
-    if (send_to(&p, clients, 1))
+    if (send_to(&p, clients, 1, &listen_s))
     {
         return true;
     }
     bzero(p.data, MAX);
 
-    if (recv_from(&p, clients, 1))
+    if (recv_from(&p, clients, 1, &listen_s))
     {
         return true;
     }
@@ -469,11 +513,11 @@ bool send_hint()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
-    if (send_to(&p, clients, 1))
+    if (send_to(&p, clients, 1, &listen_s))
     {
         return true;
     }
@@ -487,11 +531,11 @@ bool send_guess()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
-    if (send_to(&p, clients, 1))
+    if (send_to(&p, clients, 1, &listen_s))
     {
         return true;
     }
@@ -506,11 +550,11 @@ bool round_win()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
-    if (send_to(&p, clients, 1))
+    if (send_to(&p, clients, 1, &listen_s))
     {
         return true;
     }
@@ -524,11 +568,11 @@ bool round_lose()
     {
         return true;
     }
-    if (send_to(&p, clients, 0))
+    if (send_to(&p, clients, 0, &listen_s))
     {
         return true;
     }
-    if (send_to(&p, clients, 1))
+    if (send_to(&p, clients, 1, &listen_s))
     {
         return true;
     }

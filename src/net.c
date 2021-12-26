@@ -62,7 +62,7 @@ bool init_socket(int *s)
 bool init_bind(int *s,
                struct sockaddr *my_addr)
 {
-    debug_print("socket debug %d %p\n", *s, s);
+
     if (bind(*s, my_addr, sizeof(struct sockaddr)) == -1)
     {
         errmsgf("err bind %s\n", strerror(errno));
@@ -74,7 +74,7 @@ bool init_bind(int *s,
 
 bool init_listen(int *s)
 {
-    if (listen(*s, 2) == -1)
+    if (listen(*s, 0) == -1)
     {
         errmsgf("err listen\n");
         return true;
@@ -273,8 +273,59 @@ bool recv_unknown_packet(struct Packet *p,
     return false;
 }
 
+bool handle_full(
+    int *socket)
+{
+    int client;
+    struct sockaddr clientAddr;
+    socklen_t s_len;
+    FILE *f_w;
+    struct Packet p;
+    struct Message msg;
+
+    if (accept_client(&client, socket, &clientAddr, &s_len))
+    {
+        debug_print("err accept\n");
+        return true;
+    }
+    else
+    {
+        f_w = fdopen(client, "w+");
+        if (f_w == NULL)
+        {
+            return true;
+        }
+
+        message_print("Refused incomming client server full\n");
+    }
+
+    if (initMsg(&msg, (uint8_t *)"Server full\n", 13))
+    {
+        debug_print("init\n");
+        return true;
+    }
+
+    if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
+    {
+        return true;
+    }
+    if (send_packet(&p, client, f_w))
+    {
+        return true;
+    }
+    if (close_socket(&client))
+    {
+        debug_print("err close socket\n");
+    }
+    if (fclose(f_w) == EOF)
+    {
+        debug_print("err close file descriptor\n");
+    }
+    return false;
+}
+
 bool recv_from(struct Packet *p,
-               struct Client_info *clients, int c)
+               struct Client_info *clients, int c, int *listen_s)
 {
     fd_set set;
     int r;
@@ -292,6 +343,7 @@ bool recv_from(struct Packet *p,
         FD_ZERO(&set);
         FD_SET(clients[0].socket, &set);
         FD_SET(clients[1].socket, &set);
+        FD_SET(*listen_s, &set);
         r = select(maxfd + 1, &set, NULL, NULL, &timeout);
         if (r == -1)
         {
@@ -370,6 +422,13 @@ bool recv_from(struct Packet *p,
                     debug_print("Didn't ask client\n");
                 }
             }
+            if (FD_ISSET(*listen_s, &set))
+            {
+                if (handle_full(listen_s))
+                {
+                    debug_print("Refused connection");
+                }
+            }
         }
     }
 }
@@ -426,7 +485,7 @@ bool send_disconnect(struct Client_info client)
 }
 
 bool send_to(
-    struct Packet *p, struct Client_info *clients, int c)
+    struct Packet *p, struct Client_info *clients, int c, int *listen_s)
 {
     fd_set set;
     int r;
@@ -438,6 +497,7 @@ bool send_to(
     FD_ZERO(&set);
     FD_SET(clients[0].socket, &set);
     FD_SET(clients[1].socket, &set);
+    FD_SET(*listen_s, &set);
     r = select(maxfd + 1, &set, NULL, NULL, &timeout);
     if (r == -1)
     {
@@ -479,6 +539,13 @@ bool send_to(
                 return true;
             }
             debug_print("Didn't ask client\n");
+        }
+        if (FD_ISSET(*listen_s, &set))
+        {
+            if (handle_full(listen_s))
+            {
+                debug_print("Refused connection");
+            }
         }
     }
 

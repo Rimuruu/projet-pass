@@ -56,7 +56,7 @@ bool handle_connection()
                 return true;
             }
 
-            debug_print("Connected\n");
+            message_print("Connected\n");
             return false;
         }
     }
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
         errmsgf("Too many arguments\n");
         return EXIT_FAILURE;
     }
-    if (argc < 2)
+    if (argc < 3)
     {
         errmsgf("Too few arguments\n");
         return EXIT_FAILURE;
