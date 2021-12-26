@@ -305,9 +305,13 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(p, clients[0].socket, clients[0].f_r))
                     {
-                        if (send_disconnect(clients[1]))
+                        if (feof(clients[0].f_r) != 0)
                         {
-                            return true;
+
+                            if (send_disconnect(clients[1]))
+                            {
+                            }
+                            errmsgf("Player disconnect\n");
                         }
                         return true;
                     }
@@ -318,9 +322,13 @@ bool recv_from(struct Packet *p,
                     if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
                     {
 
-                        if (send_disconnect(clients[1]))
+                        if (feof(clients[0].f_r) != 0)
                         {
-                            return true;
+
+                            if (send_disconnect(clients[1]))
+                            {
+                            }
+                            errmsgf("Player disconnect\n");
                         }
                         return true;
                     }
@@ -333,9 +341,13 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(p, clients[1].socket, clients[1].f_r))
                     {
-                        if (send_disconnect(clients[0]))
+                        if (feof(clients[1].f_r) != 0)
                         {
-                            return true;
+
+                            if (send_disconnect(clients[0]))
+                            {
+                            }
+                            errmsgf("Player disconnect\n");
                         }
                         return true;
                     }
@@ -345,9 +357,13 @@ bool recv_from(struct Packet *p,
                 {
                     if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
                     {
-                        if (send_disconnect(clients[0]))
+                        if (feof(clients[1].f_r) != 0)
                         {
-                            return true;
+
+                            if (send_disconnect(clients[0]))
+                            {
+                            }
+                            errmsgf("Player disconnect\n");
                         }
                         return true;
                     }
@@ -394,6 +410,10 @@ bool send_disconnect(struct Client_info client)
 
             if (recv_packet(&tmp, client.socket, client.f_r))
             {
+                if (feof(client.f_r) != 0)
+                {
+                    errmsgf("Player disconnect\n");
+                }
                 return true;
             }
         }
@@ -431,9 +451,13 @@ bool send_to(
 
             if (recv_packet(&tmp, clients[0].socket, clients[0].f_r))
             {
-                if (send_disconnect(clients[1]))
+                if (feof(clients[0].f_r) != 0)
                 {
-                    return true;
+
+                    if (send_disconnect(clients[1]))
+                    {
+                    }
+                    errmsgf("Player disconnect\n");
                 }
                 return true;
             }
@@ -444,9 +468,13 @@ bool send_to(
 
             if (recv_packet(&tmp, clients[1].socket, clients[1].f_r))
             {
-                if (send_disconnect(clients[0]))
+                if (feof(clients[1].f_r) != 0)
                 {
-                    return true;
+
+                    if (send_disconnect(clients[0]))
+                    {
+                    }
+                    errmsgf("Player disconnect\n");
                 }
                 return true;
             }

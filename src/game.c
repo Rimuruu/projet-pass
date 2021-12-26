@@ -134,7 +134,7 @@ bool addWord(struct WordList *wordlist, uint8_t *word, uint8_t size)
         return true;
     }
     wordlist->size += 1;
-    return true;
+    return false;
 }
 
 bool print_Word(struct Word *word)

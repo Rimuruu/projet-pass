@@ -7,7 +7,6 @@
 #include <sys/select.h>
 #include "enumvalue.h"
 
-#define IP "127.0.0.1"
 #define MAX 1024
 
 struct Game game;
@@ -17,6 +16,7 @@ int nb_client = 0;
 int listen_s;
 
 uint16_t SERVERPORT = 7777;
+char SERVERIP[16] = "127.0.0.1";
 fd_set listen_set;
 
 bool swap_player()
@@ -94,7 +94,7 @@ bool check_client()
     FD_SET(clients[0].socket, &listen_set);
 
     r = select(clients[0].socket + 1, &listen_set, NULL, NULL, &timeout);
-    debug_print("test\n");
+
     if (r == -1)
         return true;
     if (r > 0)
@@ -283,6 +283,41 @@ bool send_end()
     return false;
 }
 
+bool send_bet()
+{
+    struct Packet p;
+    uint8_t m[32];
+    struct Message msg;
+    int y;
+    int size;
+    for (y = 0; y < 2; y++)
+    {
+        size = sprintf((char *)m, "Player 1 bet on %d words\n", game.rounds[game.roundIndex].maxWord);
+        if (size < 0)
+        {
+            errmsgf("sprintf\n");
+            return true;
+        }
+
+        if (initMsg(&msg, m, (uint8_t)size))
+        {
+            errmsgf("init\n");
+            return true;
+        }
+
+        if (set_packet(&p, (uint8_t *)&msg, sizeof(struct Message), MSG))
+        {
+            return true;
+        }
+
+        if (send_to(&p, clients, y))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool ask_maxword()
 {
     struct Packet p;
@@ -371,6 +406,7 @@ bool ask_hint()
         }
         if (addWord(&(game.rounds[game.roundIndex].wordsHint), tmp.word, tmp.size))
         {
+            debug_print("addword\n");
             return true;
         }
         message_print("Player 1 give the hint : %s\n", tmp.word);
@@ -461,6 +497,7 @@ bool send_guess()
     }
     return false;
 }
+
 bool round_win()
 {
     struct Packet p;
@@ -543,6 +580,10 @@ bool play_round()
     {
         return true;
     }
+    if (send_bet())
+    {
+        return true;
+    }
     if (ask_word())
     {
         return true;
@@ -562,23 +603,23 @@ bool play_game()
     {
         if (sending_player_turn())
         {
-            errmsgf("sending_player_turn\n");
+
             return true;
         }
         if (play_round())
         {
-            errmsgf("play round\n");
+
             return true;
         }
 
         if (send_score())
         {
-            errmsgf("send score\n");
+
             return true;
         }
         if (swap_player())
         {
-            errmsgf("swap_player err\n");
+
             return true;
         }
     }
@@ -592,7 +633,7 @@ bool play_game()
 int main(int argc, char **argv)
 {
 
-    if (argc > 3)
+    if (argc > 4)
     {
         errmsgf("Too many Argument\n");
         return EXIT_FAILURE;
@@ -602,8 +643,19 @@ int main(int argc, char **argv)
         errmsgf("Too few Argument\n");
         return EXIT_FAILURE;
     }
-    SERVERPORT = (uint16_t)atoi(argv[1]);
-    NROUND = atoi(argv[2]);
+    SERVERPORT = (uint16_t)atoi(argv[2]);
+    NROUND = atoi(argv[1]);
+
+    if (argc == 4)
+    {
+        if (strcpy(SERVERIP, argv[3]) == NULL)
+        {
+            errmsgf("Invalid IP adress for server\n");
+            return true;
+        }
+    }
+
+    message_print("Server listening %s:%d\n", SERVERIP, SERVERPORT);
 
     if (!((NROUND >= 1) && (NROUND <= 5)))
     {
@@ -611,8 +663,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    debug_print("serverport %s %d\n", IP, SERVERPORT);
-    if (make_sockaddr(&serv_addr, IP, SERVERPORT))
+    if (make_sockaddr(&serv_addr, SERVERIP, SERVERPORT))
     {
         errmsgf("err make sockaddr\n");
         return EXIT_FAILURE;

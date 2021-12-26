@@ -13,6 +13,7 @@ struct Server_info serv_info;
 
 struct sockaddr_in my_addr, serv_addr;
 uint16_t SERVERPORT = 7777;
+char SERVERIP[16] = "127.0.0.1";
 
 bool process_packet(uint8_t *buff, uint8_t type);
 
@@ -39,7 +40,7 @@ bool handle_connection()
     {
         if (connection_server(&(serv_info.socket), (struct sockaddr *)&serv_addr, sizeof(serv_addr)))
         {
-            debug_print("Retrying\n");
+            message_print("Retrying\n");
             sleep(3);
         }
         else
@@ -74,7 +75,7 @@ bool print_server_msg(
     {
         return true;
     }
-    message_print("[SERVER] : %s \n", msg.msg);
+    message_print("%s \n", msg.msg);
     return false;
 }
 
@@ -259,6 +260,10 @@ bool ask_maxword()
             {
                 if (recv_unknown_packet(&p, serv_info.socket, serv_info.f_r))
                 {
+                    if (feof(serv_info.f_r) != 0)
+                    {
+                        errmsgf("Game over Server disconnected\n");
+                    }
                     return true;
                 }
                 if (process_packet(p.data + 1, p.data[0]))
@@ -318,6 +323,10 @@ bool ask_word(uint8_t type)
             {
                 if (recv_unknown_packet(&p, serv_info.socket, serv_info.f_r))
                 {
+                    if (feof(serv_info.f_r) != 0)
+                    {
+                        errmsgf("Game over Server disconnected\n");
+                    }
                     return true;
                 }
                 if (process_packet(p.data + 1, p.data[0]))
@@ -396,6 +405,10 @@ bool waiting_data()
     {
         if (recv_unknown_packet(&p, serv_info.socket, serv_info.f_r))
         {
+            if (feof(serv_info.f_r) != 0)
+            {
+                errmsgf("Game over Server disconnected\n");
+            }
             return true;
         }
         if (process_packet(p.data + 1, p.data[0]))
@@ -409,12 +422,25 @@ bool waiting_data()
 int main(int argc, char **argv)
 {
 
-    if (argc != 2)
+    if (argc > 3)
     {
-        errmsgf("arg err\n");
+        errmsgf("Too many arguments\n");
+        return EXIT_FAILURE;
+    }
+    if (argc < 2)
+    {
+        errmsgf("Too few arguments\n");
         return EXIT_FAILURE;
     }
     SERVERPORT = (uint16_t)atoi(argv[1]);
+
+    if (strcpy(SERVERIP, argv[2]) == NULL)
+    {
+        errmsgf("Invalid IP adress for server\n");
+        return true;
+    }
+
+    message_print("Connecting to server %s:%d\n", SERVERIP, SERVERPORT);
 
     if (initGame(&game))
     {
@@ -424,28 +450,27 @@ int main(int argc, char **argv)
 
     if (make_sockaddr(&my_addr, "127.0.0.1", 0))
     {
-        errmsgf("err make sockaddr\n");
+        errmsgf("error make sockaddr\n");
         return EXIT_FAILURE;
     }
 
-    if (make_sockaddr(&serv_addr, "127.0.0.1", SERVERPORT))
+    if (make_sockaddr(&serv_addr, SERVERIP, SERVERPORT))
     {
-        errmsgf("err make sockaddr\n");
+        errmsgf("error make sockaddr\n");
         return EXIT_FAILURE;
     }
 
     if (init_socket(&serv_info.socket))
     {
-        errmsgf("err init socket\n");
+        errmsgf("error init socket\n");
         return EXIT_FAILURE;
     }
 
     if (init_bind(&serv_info.socket, (struct sockaddr *)&my_addr))
     {
-        errmsgf("err init bind\n");
+        errmsgf("error init bind\n");
         return EXIT_FAILURE;
     }
-    debug_print("sizeof game : %zu \n", sizeof(game));
 
     if (handle_connection())
     {

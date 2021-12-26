@@ -15,6 +15,4 @@ sujet dans le readme
 
 reste a faire
 
-- send message to player when one disconnect
-
 - eval readme...
