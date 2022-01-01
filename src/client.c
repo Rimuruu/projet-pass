@@ -76,6 +76,7 @@ bool print_server_msg(
         return true;
     }
     message_print("%s \n", msg.msg);
+    message_print("\n");
     return false;
 }
 
@@ -110,6 +111,7 @@ bool print_word_list(
             debug_print("error sleep\n");
         }
     }
+    message_print("\n");
     return false;
 }
 

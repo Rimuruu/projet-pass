@@ -1,8 +1,8 @@
 Bug :
 
-- J'ai pas réussi à faire marché le programme avec deux machines dans le même réseau (même avec le port forwarding activé sur mon routeur), le programme marche sur une machine local en loopback.
+- I didn't succeed to make the project playable on two different machine on the same network. The project work on the same machine with the loopback adresse or the local ip adress.
 
-Evolutions:
+Evolution :
 
-- Possibilité de rejouer avec les deux même joueurs.
-- Possibilité pour les joueurs de se reconnecter s'il y a eu une perte de connexion
+- Replay possibility with the same player.
+- Possibility for a player to reconnect during a game when he lost connection

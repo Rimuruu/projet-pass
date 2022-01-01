@@ -448,6 +448,7 @@ bool ask_hint()
             }
             return false;
         }
+
         if (addWord(&(game.rounds[game.roundIndex].wordsHint), tmp.word, tmp.size))
         {
             debug_print("addword\n");
@@ -496,7 +497,7 @@ bool ask_guess()
             return true;
         }
         message_print("Player 2 guess : %s\n", (char *)tmp.word);
-        game.rounds[game.roundIndex].wordHintIndex++;
+        game.rounds[game.roundIndex].wordGuessIndex++;
     }
     else
     {
@@ -602,7 +603,8 @@ bool guess_phase()
         if (send_guess())
         {
         }
-        if (strcmp((char *)game.rounds[game.roundIndex].wordsGuess.words[game.rounds[game.roundIndex].wordGuessIndex].word, (char *)game.rounds[game.roundIndex].word.word) == 0)
+        debug_print(" compare %s %s", game.rounds[game.roundIndex].wordsGuess.words[game.rounds[game.roundIndex].wordGuessIndex - 1].word, game.rounds[game.roundIndex].word.word);
+        if (strcmp((char *)game.rounds[game.roundIndex].wordsGuess.words[game.rounds[game.roundIndex].wordGuessIndex - 1].word, (char *)game.rounds[game.roundIndex].word.word) == 0)
         {
             if (round_win())
             {
@@ -671,6 +673,7 @@ bool play_game()
     {
         return true;
     }
+    message_print("Game over \n");
     return false;
 }
 
