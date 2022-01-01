@@ -1,8 +1,8 @@
 # projet-pass
 
-# Subjet
+# Subject
 
-Password game, two player try to guess each other word with a limited number of guess.
+Password game, two players try to guess each other words with a limited number of guess.
 At the start of a round, The first player bet on the number of guess they can give then he choose the word he want the other to guess, lastly he give a hint on this word. The second player take a guess, if he doesn't guess the correct word then a another hint is given then a guess until they find. When the two players exceed the number of guess, the round end and their score is 0. When they find the word before exceeding the limited number of guess, the score is 11 minus the number of guess bet. Players change role at the start of the next round.
 Word can't exceed 32 character and we can bet at most 10 words. The number of round is limited to 5.
 
@@ -300,6 +300,7 @@ One player connected
 Number of player 1/2
 One player connected
 Number of player 2/2
+CTRL+C
 
 ### Client 1
 

@@ -143,7 +143,10 @@ bool set_packet(struct Packet *p,
     if (size_struct > 0)
     {
 
-        memcpy(p->data + 1, data, size_struct);
+        if (memcpy(p->data + 1, data, size_struct) == NULL)
+        {
+            return true;
+        }
     }
     p->size = size_struct + 1;
     return false;
